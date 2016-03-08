@@ -14,7 +14,7 @@ CARCHIVE_NAME=zookeeper
 CARCHIVE=lib$(CARCHIVE_NAME).a
 
 # Flags for the C compiler.
-CFLAGS=-g -O2 -I$(ZOOKEEPER_INCDIR)
+CFLAGS=-Wno-unused-function -g -O2 -I$(ZOOKEEPER_INCDIR)
 
 OCAMLC=ocamlc
 OCAMLOPT=ocamlopt

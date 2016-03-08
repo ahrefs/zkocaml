@@ -255,7 +255,7 @@ static value
 zkocaml_enum_event_c2ml(int event)
 {
   int i = 0, index = 0;
-  ZOO_EVENT_AUX event_aux;
+  ZOO_EVENT_AUX event_aux = -1;
 
   if (event == ZOO_CREATED_EVENT) {
     event_aux = ZOO_CREATED_EVENT_AUX;
@@ -829,12 +829,12 @@ acl_completion_dispatch(int rc,
  *   client will be reconnecting to. Pass 0 if not reconnecting to a previous
  *   session. Clients can access the session id of an established, valid,
  *   connection by calling zoo_client_id. If the session corresponding to
- *   the specified clientid has expired, or if the clientid is invalid for 
+ *   the specified clientid has expired, or if the clientid is invalid for
  *   any reason, the returned zhandle_t will be invalid -- the zhandle_t
  *   state will indicate the reason for failure (typically
  *   ZOO_EXPIRED_SESSION_STATE).
  *
- * @context The handback object that will be associated with this instance 
+ * @context The handback object that will be associated with this instance
  *   of zhandle_t. Application can access it (for example, in the watcher
  *   callback) using zoo_get_context. The object is not used by zookeeper
  *   internally and can be null.
@@ -997,6 +997,7 @@ CAMLprim value
 zkocaml_set_watcher(value zh, value watcher_callback)
 {
   CAMLparam2(zh, watcher_callback);
+  int not_implemented;
   // TODO: implement this later.
   CAMLreturn(Val_unit);
 }
@@ -1011,6 +1012,7 @@ CAMLprim value
 zkocaml_get_connected_host(value zh)
 {
   CAMLparam1(zh);
+  int not_implemented;
   // TODO: implement this later.
   CAMLreturn(Val_unit);
 }
@@ -2348,22 +2350,20 @@ zkocaml_get(value zh,
   CAMLparam3(zh, path, watch);
   CAMLlocal4(result, error, buffer, stat);
 
-  int path_buffer_size;
+  int path_buffer_size = ZKOCAML_MAX_PATH_BUFFER_SIZE;
   struct Stat local_stat;
   zkocaml_handle_t *zhandle = zkocaml_handle_struct_val(zh);
   char *path_buffer = (char *)malloc(
-                      sizeof(char) * ZKOCAML_MAX_PATH_BUFFER_SIZE);
-  memset(path_buffer, 0, ZKOCAML_MAX_PATH_BUFFER_SIZE);
+                      sizeof(char) * path_buffer_size);
+  memset(path_buffer, 0, path_buffer_size);
   const char *local_path = String_val(path);
   int local_watch = Int_val(watch);
-
   int rc = zoo_get(zhandle->handle,
                    local_path,
                    local_watch,
                    path_buffer,
                    &path_buffer_size,
                    (struct Stat *)&local_stat);
-
   error = zkocaml_enum_error_c2ml(rc);
   buffer = caml_copy_string(path_buffer);
   stat = zkocaml_build_stat_struct(&local_stat);
@@ -2415,12 +2415,12 @@ zkocaml_wget(value zh,
   CAMLparam4(zh, path, watcher_callback, watcher_ctx);
   CAMLlocal4(result, error, buffer, stat);
 
-  int path_buffer_size;
+  int path_buffer_size = ZKOCAML_MAX_PATH_BUFFER_SIZE;
   struct Stat local_stat;
   zkocaml_handle_t *zhandle = zkocaml_handle_struct_val(zh);
   char *path_buffer = (char *)malloc(
-                      sizeof(char) * ZKOCAML_MAX_PATH_BUFFER_SIZE);
-  memset(path_buffer, 0, ZKOCAML_MAX_PATH_BUFFER_SIZE);
+                      sizeof(char) * path_buffer_size);
+  memset(path_buffer, 0, path_buffer_size);
   const char *local_path = String_val(path);
   zkocaml_watcher_context_t *local_ctx = (zkocaml_watcher_context_t *)
       malloc(sizeof(zkocaml_watcher_context_t));
@@ -2526,7 +2526,6 @@ zkocaml_set2(value zh, value path, value buffer, value version)
   CAMLparam4(zh, path, buffer, version);
   CAMLlocal3(result, error, stat);
 
-  int path_buffer_size;
   struct Stat local_stat;
   zkocaml_handle_t *zhandle = zkocaml_handle_struct_val(zh);
   const char *local_path = String_val(path);
@@ -2871,4 +2870,3 @@ zkocaml_set_acl(value zh, value path, value version, value acl)
 
   CAMLreturn(result);
 }
-
