@@ -1,0 +1,11 @@
+# OASIS_START
+# DO NOT EDIT (digest: bf940afd9613aa2a2ea2a276a6fb551a)
+version = "1"
+description = "Apache zookeeper client binding for OCAML"
+archive(byte) = "zkocaml.cma"
+archive(byte, plugin) = "zkocaml.cma"
+archive(native) = "zkocaml.cmxa"
+archive(native, plugin) = "zkocaml.cmxs"
+exists_if = "zkocaml.cma"
+# OASIS_STOP
+

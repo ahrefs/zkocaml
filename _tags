@@ -1,0 +1,27 @@
+# OASIS_START
+# DO NOT EDIT (digest: f718f8ae8d3cbd45ce5e25a4a140356b)
+# Ignore VCS directories, you can use the same kind of rule outside
+# OASIS_START/STOP if you want to exclude directories that contains
+# useless stuff for the build process
+true: annot, bin_annot
+<**/.svn>: -traverse
+<**/.svn>: not_hygienic
+".bzr": -traverse
+".bzr": not_hygienic
+".hg": -traverse
+".hg": not_hygienic
+".git": -traverse
+".git": not_hygienic
+"_darcs": -traverse
+"_darcs": not_hygienic
+# Library zkocaml
+"src/zkocaml.cmxs": use_zkocaml
+<src/*.ml{,i,y}>: oasis_library_zkocaml_ccopt
+"src/zkocaml_stubs.c": oasis_library_zkocaml_ccopt
+<src/zkocaml.{cma,cmxa}>: oasis_library_zkocaml_cclib
+"src/libzkocaml_stubs.lib": oasis_library_zkocaml_cclib
+"src/dllzkocaml_stubs.dll": oasis_library_zkocaml_cclib
+"src/libzkocaml_stubs.a": oasis_library_zkocaml_cclib
+"src/dllzkocaml_stubs.so": oasis_library_zkocaml_cclib
+<src/zkocaml.{cma,cmxa}>: use_libzkocaml_stubs
+# OASIS_STOP

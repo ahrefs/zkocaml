@@ -1,0 +1,16 @@
+OASISFormat: 0.4
+Name:        zkocaml
+Version:     1
+Synopsis:    Apache zookeeper client binding for OCAML
+Authors:     many
+License:     Apache-2.0
+Plugins:     DevFiles (0.4), META (0.4)
+
+Library zkocaml
+  Modules: Zookeeper
+  Path:       src
+  BuildTools: ocamlbuild
+  CCopt: -g -x c -O2 -Wno-unused-function
+  CClib: -lzookeeper_mt
+  CSources:
+    zkocaml_stubs.c, zkocaml_stubs.h
