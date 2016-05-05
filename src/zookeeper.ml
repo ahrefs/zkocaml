@@ -563,21 +563,21 @@ external async:
   -> string
   -> error = "zkocaml_async"
 
-external aget_acl:
+external aset_acl:
      zhandle
   -> string
   -> int
   -> acls
   -> acl_completion_callback
   -> string
-  -> error = "zkocaml_aget_acl"
+  -> error = "zkocaml_aset_acl_native" "zkocaml_aset_acl_bytecode"
 
-external aset_acl:
+external aget_acl:
      zhandle
   -> string
   -> acl_completion_callback
   -> string
-  -> error = "zkocaml_aset_acl_native" "zkocaml_aset_acl_bytecode"
+  -> error = "zkocaml_aget_acl"
 
 external zerror:
      int

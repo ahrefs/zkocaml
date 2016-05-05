@@ -141,13 +141,12 @@ external awget_children2 :
 external async :
   zhandle -> string -> string_completion_callback -> string -> error
   = "zkocaml_async"
-external aget_acl :
-  zhandle ->
-  string -> int -> acls -> acl_completion_callback -> string -> error
-  = "zkocaml_aget_acl"
 external aset_acl :
-  zhandle -> string -> acl_completion_callback -> string -> error
+  zhandle -> string -> int -> acls -> acl_completion_callback -> string -> error
   = "zkocaml_aset_acl_native" "zkocaml_aset_acl_bytecode"
+external aget_acl :
+  zhandle -> string -> acl_completion_callback -> string -> error
+  = "zkocaml_aget_acl"
 external zerror : int -> string = "zkocaml_zerror"
 external add_auth :
   zhandle -> string -> string -> void_completion_callback -> string -> error
