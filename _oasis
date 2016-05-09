@@ -10,7 +10,7 @@ Library zkocaml
   Modules: Zookeeper
   Path:       src
   BuildTools: ocamlbuild
-  CCopt: -g -x c -O2 -Wno-unused-function
+  CCopt: -g -x c -pthread -O2 -Wno-unused-function
   CClib: -lzookeeper_mt
   CSources:
     zkocaml_stubs.c, zkocaml_stubs.h

@@ -33,7 +33,7 @@
 
 #include "zkocaml_stubs.h"
 
-#if 1
+#if 0 //WTF
  #define zkocaml_enter_callback() \
    do {\
      caml_acquire_runtime_system();\
@@ -166,12 +166,10 @@ zkocaml_copy_zhandle(zhandle_t *zh)
   CAMLparam0();
   CAMLlocal1(handle);
 
-  zkocaml_handle_t *zhandle = (zkocaml_handle_t *)
-      malloc(sizeof(zkocaml_handle_t));
+  zkocaml_handle_t *zhandle = (zkocaml_handle_t *) malloc(sizeof(zkocaml_handle_t));
   zhandle->handle = zh;
 
-  handle = caml_alloc_custom(&zhandle_struct_ops,
-          sizeof(zkocaml_handle_t *), 0, 1);
+  handle = caml_alloc_custom(&zhandle_struct_ops, sizeof(zkocaml_handle_t *), 0, 1);
   zkocaml_handle_struct_val(handle) = zhandle;
 
   CAMLreturn(handle);
@@ -180,14 +178,12 @@ zkocaml_copy_zhandle(zhandle_t *zh)
 static enum ZOO_ERRORS
 zkocaml_enum_error_ml2c(value v)
 {
-  CAMLparam1(v);
   return ZOO_ERRORS_TABLE[Long_val(v)];
 }
 
 static value
 zkocaml_enum_error_c2ml(enum ZOO_ERRORS error)
 {
-  CAMLlocal1(v);
   int i = 0, index = 0;
   for (; i < zkocaml_table_len(ZOO_ERRORS_TABLE); i++) {
     if (error == ZOO_ERRORS_TABLE[i]) {
@@ -201,14 +197,12 @@ zkocaml_enum_error_c2ml(enum ZOO_ERRORS error)
 static ZooLogLevel
 zkocaml_enum_loglevel_ml2c(value v)
 {
-  CAMLparam1(v);
   return ZOO_LOG_LEVEL_TABLE[Long_val(v)];
 }
 
 static value
 zkocaml_enum_loglevel_c2ml(ZooLogLevel log_level)
 {
-  CAMLlocal1(v);
   int i = 0, index = 0;
   for (; i < zkocaml_table_len(ZOO_LOG_LEVEL_TABLE); i++) {
     if (log_level == ZOO_LOG_LEVEL_TABLE[i]) {
@@ -222,8 +216,6 @@ zkocaml_enum_loglevel_c2ml(ZooLogLevel log_level)
 static int
 zkocaml_enum_event_ml2c(value v)
 {
-  CAMLparam1(v);
-
   int event = -1;
   ZOO_EVENT_AUX event_aux = Int_val(v);
 
@@ -283,7 +275,6 @@ zkocaml_enum_event_c2ml(int event)
 static int
 zkocaml_enum_state_ml2c(value v)
 {
-  CAMLparam1(v);
   int state = -1;
   ZOO_STATE_AUX state_aux = Int_val(v);
 
@@ -311,8 +302,6 @@ zkocaml_enum_state_ml2c(value v)
 static value
 zkocaml_enum_state_c2ml(int state)
 {
-  CAMLlocal1(v);
-
   int i = 0, index = 0;
   ZOO_STATE_AUX state_aux = ZOO_EXPIRED_SESSION_STATE_AUX;
 
@@ -340,7 +329,6 @@ zkocaml_enum_state_c2ml(int state)
 static int
 zkocaml_enum_perm_ml2c(value v)
 {
-  CAMLparam1(v);
   int perm = -1;
   ZOO_PERM_AUX perm_aux = Int_val(v);
 
@@ -371,8 +359,6 @@ zkocaml_enum_perm_ml2c(value v)
 static value
 zkocaml_enum_perm_c2ml(int perm)
 {
-  CAMLlocal1(v);
-
   int i = 0, index = 0;
   ZOO_PERM_AUX perm_aux;
 
@@ -402,7 +388,6 @@ zkocaml_enum_perm_c2ml(int perm)
 static int
 zkocaml_enum_create_flag_ml2c(value v)
 {
-  CAMLparam1(v);
   int create_flag = -1;
   ZOO_CREATE_FLAG_AUX create_flag_aux = Int_val(v);
 
@@ -421,8 +406,6 @@ zkocaml_enum_create_flag_ml2c(value v)
 static value
 zkocaml_enum_create_flag_c2ml(int create_flag)
 {
-  CAMLlocal1(v);
-
   int i = 0, index = 0;
   ZOO_CREATE_FLAG_AUX create_flag_aux;
 
@@ -444,7 +427,6 @@ zkocaml_enum_create_flag_c2ml(int create_flag)
 static clientid_t *
 zkocaml_parse_clientid(value v)
 {
-  CAMLparam1(v);
   /**
    * client id structure.
    *
@@ -481,19 +463,16 @@ zkocaml_parse_clientid(value v)
 static int
 zkocaml_parse_acls(value v, struct ACL_vector *acls)
 {
-  CAMLparam1(v);
-  CAMLlocal1(acl);
-
   int i = 0, vlen = Wosize_val(v);
   if (vlen == 0) return 0;
 
   acls->count = vlen;
   acls->data = (struct ACL *)calloc(acls->count, sizeof(struct ACL));
   for (; i < vlen; i++) {
-      acl = Field(v, i);
-      acls->data[i].perms = Field(acl, 0);
-      acls->data[i].id.scheme = strdup(String_val(Field(acl, 1)));
-      acls->data[i].id.id = strdup(String_val(Field(acl, 2)));
+      /* acl = Field(v, i); */
+      acls->data[i].perms = Field(Field(v, i), 0);
+      acls->data[i].id.scheme = strdup(String_val(Field(Field(v, i), 1)));
+      acls->data[i].id.id = strdup(String_val(Field(Field(v, i), 2)));
   }
 
   return 1;
@@ -502,19 +481,21 @@ zkocaml_parse_acls(value v, struct ACL_vector *acls)
 static value
 zkocaml_build_client_id_struct(const clientid_t *cid)
 {
+  CAMLparam0();
   CAMLlocal1(v);
 
   v = caml_alloc(2, 0);
   Store_field(v, 0, caml_copy_int64(cid->client_id));
   Store_field(v, 1, caml_copy_string(cid->passwd));
 
-  return v;
+  CAMLreturn(v);
 }
 
 
 static value
 zkocaml_build_stat_struct(const struct Stat *stat)
 {
+  CAMLparam0();
   CAMLlocal1(v);
 
   v = caml_alloc(11, 0);
@@ -530,12 +511,13 @@ zkocaml_build_stat_struct(const struct Stat *stat)
   Store_field(v,  9, Val_int(stat->numChildren));
   Store_field(v, 10, Val_int(stat->pzxid));
 
-  return v;
+  CAMLreturn(v);
 }
 
 static value
 zkocaml_build_strings_struct(const struct String_vector *strings)
 {
+  CAMLparam0();
   CAMLlocal1(v);
 
   int i = 0;
@@ -544,12 +526,13 @@ zkocaml_build_strings_struct(const struct String_vector *strings)
     Store_field(v, i, caml_copy_string(strings->data[i]));
   }
 
-  return v;
+  CAMLreturn(v);
 }
 
 static value
 zkocaml_build_acls_struct(const struct ACL_vector *acls)
 {
+  CAMLparam0();
   CAMLlocal2(v, acl);
 
   int i = 0;
@@ -563,7 +546,7 @@ zkocaml_build_acls_struct(const struct ACL_vector *acls)
     Store_field(v, i, acl);
   }
 
-  return v;
+  CAMLreturn(v);
 }
 
 static void
@@ -573,11 +556,11 @@ watcher_dispatch(zhandle_t *zh,
                  const char *path,
                  void *watcher_ctx)
 {
+  CAMLparam0();
   zkocaml_enter_callback();
 
+  CAMLlocal5(local_zh, local_type, local_state, local_path, local_watcher_ctx);
   CAMLlocal1(watcher_callback);
-  CAMLlocal5(local_zh, local_type, local_state,
-             local_path, local_watcher_ctx);
   CAMLlocalN(args, 5);
 
   zkocaml_watcher_context_t *ctx =
@@ -598,6 +581,7 @@ watcher_dispatch(zhandle_t *zh,
   callbackN(watcher_callback, 5, args);
 
   zkocaml_leave_callback();
+  CAMLreturn0;
 }
 
 /**
@@ -612,6 +596,7 @@ watcher_dispatch(zhandle_t *zh,
 static void
 void_completion_dispatch(int rc, const void *data)
 {
+  CAMLparam0();
   zkocaml_enter_callback();
 
   CAMLlocal1(completion_callback);
@@ -626,6 +611,7 @@ void_completion_dispatch(int rc, const void *data)
   callback2(completion_callback, local_rc, local_data);
 
   zkocaml_leave_callback();
+  CAMLreturn0;
 }
 
 /**
@@ -637,6 +623,7 @@ stat_completion_dispatch(int rc,
                          const struct Stat *stat,
                          const void *data)
 {
+  CAMLparam0();
   zkocaml_enter_callback();
 
   CAMLlocal1(completion_callback);
@@ -652,6 +639,7 @@ stat_completion_dispatch(int rc,
   callback3(completion_callback, local_rc, local_stat, local_data);
 
   zkocaml_leave_callback();
+  CAMLreturn0;
 }
 /**
  * Called when an asynchronous call that returns a stat structure and
@@ -665,6 +653,7 @@ data_completion_dispatch(int rc,
                          const struct Stat *stat,
                          const void *data)
 {
+  CAMLparam0();
   zkocaml_enter_callback();
 
   CAMLlocal1(completion_callback);
@@ -689,6 +678,7 @@ data_completion_dispatch(int rc,
   callbackN(completion_callback, 5, args);
 
   zkocaml_leave_callback();
+  CAMLreturn0;
 }
 
 /**
@@ -700,6 +690,7 @@ strings_completion_dispatch(int rc,
                             const struct String_vector *strings,
                             const void *data)
 {
+  CAMLparam0();
   zkocaml_enter_callback();
 
   CAMLlocal1(completion_callback);
@@ -715,6 +706,7 @@ strings_completion_dispatch(int rc,
   callback3(completion_callback, local_rc, local_strings, local_data);
 
   zkocaml_leave_callback();
+  CAMLreturn0;
 }
 
 /**
@@ -727,6 +719,7 @@ strings_stat_completion_dispatch(int rc,
                                  const struct Stat *stat,
                                  const void *data)
 {
+  CAMLparam0();
   zkocaml_enter_callback();
 
   CAMLlocal1(completion_callback);
@@ -749,6 +742,7 @@ strings_stat_completion_dispatch(int rc,
   callbackN(completion_callback, 4, args);
 
   zkocaml_leave_callback();
+  CAMLreturn0;
 }
 
 /**
@@ -760,6 +754,7 @@ string_completion_dispatch(int rc,
                            const char *val,
                            const void *data)
 {
+  CAMLparam0();
   zkocaml_enter_callback();
 
   CAMLlocal1(completion_callback);
@@ -775,6 +770,7 @@ string_completion_dispatch(int rc,
   callback3(completion_callback, local_rc, local_val, local_data);
 
   zkocaml_leave_callback();
+  CAMLreturn0;
 }
 
 /**
@@ -787,6 +783,7 @@ acl_completion_dispatch(int rc,
                         struct Stat *stat,
                         const void *data)
 {
+  CAMLparam0();
   zkocaml_enter_callback();
 
   CAMLlocal1(completion_callback);
@@ -809,6 +806,7 @@ acl_completion_dispatch(int rc,
   callbackN(completion_callback, 4, args);
 
   zkocaml_leave_callback();
+  CAMLreturn0;
 }
 
 /**
@@ -2131,10 +2129,10 @@ zkocaml_deterministic_conn_order(value yes_or_no)
  */
 CAMLprim value
 zkocaml_create(value zh,
-                      value path,
-                      value val,
-                      value acl,
-                      value flags)
+               value path,
+               value val,
+               value acl,
+               value flags)
 {
   CAMLparam5(zh, path, val, acl, flags);
   CAMLlocal3(result, error, buffer);
@@ -2479,7 +2477,7 @@ zkocaml_set(value zh, value path, value buffer, value version)
 
   zkocaml_handle_t *zhandle = zkocaml_handle_struct_val(zh);
   const char *local_path = String_val(path);
-  const char *local_buffer = String_val(path);
+  const char *local_buffer = String_val(buffer);
   size_t buffer_len = strlen(local_buffer);
   int local_version = Int_val(version);
 
@@ -2744,9 +2742,9 @@ zkocaml_get_children2(value zh,
  */
 CAMLprim value
 zkocaml_wget_children2(value zh,
-                              value path,
-                              value watcher_callback,
-                              value watcher_ctx)
+                       value path,
+                       value watcher_callback,
+                       value watcher_ctx)
 {
   CAMLparam4(zh, path, watcher_callback, watcher_ctx);
   CAMLlocal4(result, error, strs, stat);
