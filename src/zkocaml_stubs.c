@@ -911,7 +911,7 @@ zkocaml_close(value zh)
   zkocaml_handle_t *zhandle = NULL;
   zhandle = zkocaml_handle_struct_val(zh);
   int rc = zookeeper_close(zhandle->handle);
-  if (zkocaml_log_stream == NULL) fclose(zkocaml_log_stream);
+  if (zkocaml_log_stream != NULL) fclose(zkocaml_log_stream);
   result = Val_int(rc);
 
   CAMLreturn(result);

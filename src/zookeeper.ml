@@ -398,6 +398,33 @@ type string_completion_callback = error -> string -> string -> unit
  *)
 type acl_completion_callback = error -> acls -> stat -> string -> unit
 
+let show_error e =
+  match e with
+  | ZOK                   -> "Everything is OK"
+  | ZSYSTEMERROR          -> "System error"
+  | ZRUNTIMEINCONSISTENCY -> "A runtime inconsistency was foud"
+  | ZDATAINCONSISTENCY    -> "A data inconsistency was found"
+  | ZCONNECTIONLOSS       -> "Connection to the server has been lost"
+  | ZMARSHALLINGERROR     -> "Error while marshalling or unmarshalling data"
+  | ZUNIMPLEMENTED        -> "Operation is unimplemented"
+  | ZOPERATIONTIMEOUT     -> "Operation timeout"
+  | ZBADARGUMENTS         -> "Invalid arguments"
+  | ZINVALIDSTATE         -> "Invliad zhandle state"
+  | ZAPIERROR             -> "Api error"
+  | ZNONODE                -> "Node does not exist"
+  | ZNOAUTH                -> "Not authenticated"
+  | ZBADVERSION            -> "Version conflict"
+  | ZNOCHILDRENFOREPHEMERALS -> "Ephemeral nodes may not have children"
+  | ZNODEEXISTS            -> "The node already exists"
+  | ZNOTEMPTY              -> "The node has children"
+  | ZSESSIONEXPIRED        -> "The session has been expired by the server"
+  | ZINVALIDCALLBACK       -> "Invalid callback specified"
+  | ZINVALIDACL            -> "Invalid ACL specified"
+  | ZAUTHFAILED            -> "Client authentication failed"
+  | ZCLOSING               -> "ZooKeeper is closing"
+  | ZNOTHING               -> "(not error) no server responses to process"
+  | ZSESSIONMOVED          -> "Session moved to another server, so operation is ignored"
+
 (*
 
 (** This ID represents anyone. *)

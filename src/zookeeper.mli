@@ -77,6 +77,9 @@ type strings_stat_completion_callback =
     error -> strings -> stat -> string -> unit
 type string_completion_callback = error -> string -> string -> unit
 type acl_completion_callback = error -> acls -> stat -> string -> unit
+
+val show_error : error -> string
+
 external init :
   string -> watcher_callback -> int -> client_id -> string -> int -> zhandle
   = "zkocaml_init_bytecode" "zkocaml_init_native"
