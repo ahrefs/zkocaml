@@ -97,7 +97,7 @@ external acreate :
   zhandle ->
   string ->
   string ->
-  acls -> create_flag -> string_completion_callback -> string -> error
+  acls -> create_flag array -> string_completion_callback -> string -> error
   = "zkocaml_acreate_bytecode" "zkocaml_acreate_native"
 external adelete :
   zhandle -> string -> int -> void_completion_callback -> string -> error
@@ -160,7 +160,7 @@ external is_unrecoverable : zhandle -> error = "zkocaml_is_unrecoverable"
 external deterministic_conn_order : bool -> unit
   = "zkocaml_deterministic_conn_order"
 external create :
-  zhandle -> string -> string -> acls -> create_flag -> error * string
+  zhandle -> string -> string -> acls -> create_flag array -> error * string
   = "zkocaml_create"
 external delete : zhandle -> string -> int -> error = "zkocaml_delete"
 external exists : zhandle -> string -> int -> error * stat = "zkocaml_exists"

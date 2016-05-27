@@ -388,18 +388,19 @@ zkocaml_enum_perm_c2ml(int perm)
 static int
 zkocaml_enum_create_flag_ml2c(value v)
 {
-  int create_flag = -1;
-  ZOO_CREATE_FLAG_AUX create_flag_aux = Int_val(v);
-
-  switch(create_flag_aux) {
-  case ZOO_EPHEMERAL_AUX:
-    create_flag = ZOO_EPHEMERAL;
-    break;
-  case ZOO_SEQUENCE_AUX:
-    create_flag = ZOO_SEQUENCE;
-    break;
+  int create_flag = 0;
+  int len = Wosize_val(v);
+  for (int i = 0; i < len; i++){
+      ZOO_CREATE_FLAG_AUX create_flag_aux = Int_val(Field(v, i));
+      switch(create_flag_aux) {
+      case ZOO_EPHEMERAL_AUX:
+          create_flag |= ZOO_EPHEMERAL;
+          break;
+      case ZOO_SEQUENCE_AUX:
+          create_flag |= ZOO_SEQUENCE;
+          break;
+      }
   }
-
   return create_flag;
 }
 

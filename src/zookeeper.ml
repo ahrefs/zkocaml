@@ -493,7 +493,7 @@ external acreate:
   -> string
   -> string
   -> acls
-  -> create_flag
+  -> create_flag array
   -> string_completion_callback
   -> string
   -> error = "zkocaml_acreate_bytecode" "zkocaml_acreate_native"
@@ -639,7 +639,7 @@ external create:
   -> string
   -> string
   -> acls
-  -> create_flag
+  -> create_flag array
   -> error * string = "zkocaml_create"
 
 external delete:
