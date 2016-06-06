@@ -33,27 +33,15 @@
 
 #include "zkocaml_stubs.h"
 
-#if 0 //WTF
- #define zkocaml_enter_callback() \
-   do {\
-     caml_acquire_runtime_system();\
-   } while(0)
- #define zkocaml_leave_callback() \
-   do {\
-     caml_release_runtime_system();\
-   } while(0)
-#else
- #define zkocaml_enter_callback() \
-   int zkocaml_c_thread_registered = caml_c_thread_register(); \
-   if (zkocaml_c_thread_registered) caml_acquire_runtime_system()
- #define zkocaml_leave_callback() \
-   do {\
-     if (zkocaml_c_thread_registered) { \
-       caml_release_runtime_system(); \
-       caml_c_thread_unregister(); \
-     } \
-   } while(0)
-#endif
+#define zkocaml_enter_callback() \
+  int zkocaml_c_thread_registered = caml_c_thread_register(); \
+  if (zkocaml_c_thread_registered) caml_acquire_runtime_system()
+
+#define zkocaml_leave_callback()     \
+  if (zkocaml_c_thread_registered) { \
+    caml_release_runtime_system(); \
+    caml_c_thread_unregister(); \
+  }
 
 #define zkocaml_handle_struct_val(v) \
   (*(zkocaml_handle_t **)Data_custom_val(v))
@@ -760,11 +748,13 @@ string_completion_dispatch(int rc,
   CAMLlocal1(completion_callback);
   CAMLlocal3(local_rc, local_val, local_data);
 
-  zkocaml_completion_context_t *ctx =
-    (zkocaml_completion_context_t *)data;
+  zkocaml_completion_context_t *ctx = (zkocaml_completion_context_t *)data;
   completion_callback = ctx->completion_callback;
   local_rc = zkocaml_enum_error_c2ml(rc);
-  if (val != NULL) local_val = caml_copy_string(val);
+  if (val != NULL)
+      local_val = caml_copy_string(val);
+  else
+      local_val = caml_alloc_string(0);
   local_data = caml_copy_string(ctx->data);
 
   callback3(completion_callback, local_rc, local_val, local_data);
@@ -913,6 +903,8 @@ zkocaml_close(value zh)
   zkocaml_handle_t *zhandle = NULL;
   zhandle = zkocaml_handle_struct_val(zh);
 
+  zkocaml_watcher_context_t *ctx = (zkocaml_watcher_context_t*) zoo_get_context(zhandle->handle);
+  caml_remove_generational_global_root(&(ctx->watcher_callback));
 
   int rc = zookeeper_close(zhandle->handle);
   if (zkocaml_log_stream != NULL) fclose(zkocaml_log_stream);
@@ -969,8 +961,8 @@ zkocaml_get_context(value zh)
 
   zkocaml_handle_t *zhandle = NULL;
   zhandle = zkocaml_handle_struct_val(zh);
-  const char *context = zoo_get_context(zhandle->handle);
-  result = caml_copy_string(context);
+  zkocaml_watcher_context_t *ctx = (zkocaml_watcher_context_t*) zoo_get_context(zhandle->handle);
+  result = caml_copy_string((char*)ctx->watcher_ctx);
 
   CAMLreturn(result);
 }

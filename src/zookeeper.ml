@@ -425,6 +425,15 @@ let show_error e =
   | ZNOTHING               -> "(not error) no server responses to process"
   | ZSESSIONMOVED          -> "Session moved to another server, so operation is ignored"
 
+let show_event e =
+  match e with
+  | ZOO_CREATED_EVENT -> "ZOO_CREATED_EVENT"
+  | ZOO_DELETED_EVENT -> "ZOO_DELETED_EVENT"
+  | ZOO_CHANGED_EVENT -> "ZOO_CHANGED_EVENT"
+  | ZOO_CHILD_EVENT -> "ZOO_CHILD_EVENT"
+  | ZOO_SESSION_EVENT -> "ZOO_SESSION_EVENT"
+  | ZOO_NOTWATCHING_EVENT -> "ZOO_NOTWATCHING_EVENT"
+
 (*
 
 (** This ID represents anyone. *)
