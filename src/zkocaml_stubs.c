@@ -451,7 +451,7 @@ zkocaml_parse_clientid(value v)
 
   cid->client_id = Int64_val(Field(v, 0));
   const char *passwd = String_val(Field(v, 1));
-  size_t passwd_len = strlen(passwd);
+  size_t passwd_len = caml_string_length(Field(v, 1));
   if (cid->client_id == 0 && passwd_len == 0) {
       return NULL;
   } else {
@@ -1089,9 +1089,6 @@ zkocaml_acreate_native(value zh,
 
   struct ACL_vector local_acl;
   zkocaml_handle_t *zhandle = zkocaml_handle_struct_val(zh);
-  const char *local_path = String_val(path);
-  const char *local_val = String_val(val);
-  size_t local_val_len = strlen(local_val);
   int r = zkocaml_parse_acls(acl, &local_acl);
   if (r == 0) {
     local_acl = ZOO_OPEN_ACL_UNSAFE;
@@ -1105,9 +1102,9 @@ zkocaml_acreate_native(value zh,
   caml_register_generational_global_root(&(local_data->completion_callback));
 
   int rc = zoo_acreate(zhandle->handle,
-                       local_path,
-                       local_val,
-                       local_val_len,
+                       String_val(path),
+                       String_val(val),
+                       caml_string_length(val),
                        (const struct ACL_vector *)&local_acl,
                        local_flags,
                        string_completion_dispatch,
@@ -1492,10 +1489,6 @@ zkocaml_aset_native(value zh,
   CAMLlocal1(result);
 
   zkocaml_handle_t *zhandle = zkocaml_handle_struct_val(zh);
-  const char *local_path = String_val(path);
-  const char *local_buffer = String_val(buffer);
-  size_t buffer_len = strlen(local_buffer);
-  int local_version = Int_val(version);
   zkocaml_completion_context_t *local_data =
     (zkocaml_completion_context_t *)malloc(sizeof(zkocaml_completion_context_t));
   local_data->data = strdup(String_val(data));
@@ -1504,10 +1497,10 @@ zkocaml_aset_native(value zh,
   caml_register_generational_global_root(&(local_data->completion_callback));
 
   int rc = zoo_aset(zhandle->handle,
-                    local_path,
-                    local_buffer,
-                    buffer_len,
-                    local_version,
+                    String_val(path),
+                    String_val(buffer),
+                    caml_string_length(buffer),
+                    Int_val(version),
                     stat_completion_dispatch,
                     local_data);
   result = zkocaml_enum_error_c2ml(rc);
@@ -2012,9 +2005,6 @@ zkocaml_add_auth(value zh,
   CAMLlocal1(result);
 
   zkocaml_handle_t *zhandle = zkocaml_handle_struct_val(zh);
-  const char *local_scheme = String_val(scheme);
-  const char *local_cert = String_val(cert);
-  size_t cert_len = strlen(local_cert);
   zkocaml_completion_context_t *local_data =
     (zkocaml_completion_context_t *)malloc(sizeof(zkocaml_completion_context_t));
   local_data->data = strdup(String_val(data));
@@ -2023,9 +2013,9 @@ zkocaml_add_auth(value zh,
   caml_register_generational_global_root(&(local_data->completion_callback));
 
   int rc = zoo_add_auth(zhandle->handle,
-                        local_scheme,
-                        local_cert,
-                        cert_len,
+                        String_val(scheme),
+                        String_val(cert),
+                        caml_string_length(cert),
                         void_completion_dispatch,
                         local_data);
   result = zkocaml_enum_error_c2ml(rc);
@@ -2177,11 +2167,7 @@ zkocaml_create(value zh,
 
   struct ACL_vector local_acl;
   zkocaml_handle_t *zhandle = zkocaml_handle_struct_val(zh);
-  char *path_buffer = (char *)malloc(
-                      sizeof(char) * ZKOCAML_MAX_PATH_BUFFER_SIZE);
-  memset(path_buffer, 0, ZKOCAML_MAX_PATH_BUFFER_SIZE);
-  const char *local_path = String_val(path);
-  const char *local_val = String_val(val);
+  char *path_buffer = (char *)calloc(ZKOCAML_MAX_PATH_BUFFER_SIZE, sizeof(char));
   int r = zkocaml_parse_acls(acl, &local_acl);
   if (r == 0) {
     local_acl = ZOO_OPEN_ACL_UNSAFE;
@@ -2189,9 +2175,9 @@ zkocaml_create(value zh,
   int local_flags = zkocaml_enum_create_flag_ml2c(flags);
 
   int rc = zoo_create(zhandle->handle,
-                      local_path,
-                      local_val,
-                      strlen(local_val),
+                      String_val(path),
+                      String_val(val),
+                      caml_string_length(val),
                       (const struct ACL_vector *)&local_acl,
                       local_flags,
                       path_buffer,
@@ -2518,16 +2504,12 @@ zkocaml_set(value zh, value path, value buffer, value version)
   CAMLlocal1(result);
 
   zkocaml_handle_t *zhandle = zkocaml_handle_struct_val(zh);
-  const char *local_path = String_val(path);
-  const char *local_buffer = String_val(buffer);
-  size_t buffer_len = strlen(local_buffer);
-  int local_version = Int_val(version);
 
   int rc = zoo_set(zhandle->handle,
-                   local_path,
-                   local_buffer,
-                   buffer_len,
-                   local_version);
+                   String_val(path),
+                   String_val(buffer),
+                   caml_string_length(buffer),
+                   Int_val(version));
   result = zkocaml_enum_error_c2ml(rc);
 
   CAMLreturn(result);
@@ -2568,16 +2550,13 @@ zkocaml_set2(value zh, value path, value buffer, value version)
 
   struct Stat local_stat;
   zkocaml_handle_t *zhandle = zkocaml_handle_struct_val(zh);
-  const char *local_path = String_val(path);
-  const char *local_buffer = String_val(buffer);
-  int local_version = Int_val(version);
 
   int rc = zoo_set2(zhandle->handle,
-                    local_path,
-                    local_buffer,
-                    strlen(local_buffer),
-                    local_version,
-                    (struct Stat *)&local_stat);
+                    String_val(path),
+                    String_val(buffer),
+                    caml_string_length(buffer),
+                    Int_val(version),
+                    &local_stat);
 
   error = zkocaml_enum_error_c2ml(rc);
   stat = zkocaml_build_stat_struct(&local_stat);
