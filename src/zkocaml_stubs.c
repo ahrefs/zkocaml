@@ -545,15 +545,13 @@ watcher_dispatch(zhandle_t *zh,
                  const char *path,
                  void *watcher_ctx)
 {
-  CAMLparam0();
   zkocaml_enter_callback();
+  CAMLparam0();
 
   CAMLlocal5(local_zh, local_type, local_state, local_path, local_watcher_ctx);
-  CAMLlocal1(watcher_callback);
   CAMLlocalN(args, 5);
 
   zkocaml_watcher_context_t *ctx = (zkocaml_watcher_context_t* )(watcher_ctx);
-  watcher_callback = ctx->watcher_callback;
   local_zh = zkocaml_copy_zhandle(zh);
   local_type = zkocaml_enum_event_c2ml(type);
   local_state = zkocaml_enum_state_c2ml(state);
@@ -566,7 +564,7 @@ watcher_dispatch(zhandle_t *zh,
   Store_field(args, 3, local_path);
   Store_field(args, 4, local_watcher_ctx);
 
-  callbackN(watcher_callback, 5, args);
+  callbackN(ctx->watcher_callback, 5, args);
 
   zkocaml_leave_callback();
   CAMLreturn0;
@@ -584,8 +582,8 @@ watcher_dispatch(zhandle_t *zh,
 static void
 void_completion_dispatch(int rc, const void *data)
 {
-  CAMLparam0();
   zkocaml_enter_callback();
+  CAMLparam0();
 
   CAMLlocal1(completion_callback);
   CAMLlocal2(local_rc, local_data);
@@ -611,8 +609,8 @@ stat_completion_dispatch(int rc,
                          const struct Stat *stat,
                          const void *data)
 {
-  CAMLparam0();
   zkocaml_enter_callback();
+  CAMLparam0();
 
   CAMLlocal1(completion_callback);
   CAMLlocal3(local_rc, local_stat, local_data);
@@ -641,8 +639,8 @@ data_completion_dispatch(int rc,
                          const struct Stat *stat,
                          const void *data)
 {
-  CAMLparam0();
   zkocaml_enter_callback();
+  CAMLparam0();
 
   CAMLlocal1(completion_callback);
   CAMLlocal5(local_rc, local_val, local_val_len, local_stat, local_data);
@@ -678,8 +676,8 @@ strings_completion_dispatch(int rc,
                             const struct String_vector *strings,
                             const void *data)
 {
-  CAMLparam0();
   zkocaml_enter_callback();
+  CAMLparam0();
 
   CAMLlocal1(completion_callback);
   CAMLlocal3(local_rc, local_strings, local_data);
@@ -707,8 +705,8 @@ strings_stat_completion_dispatch(int rc,
                                  const struct Stat *stat,
                                  const void *data)
 {
-  CAMLparam0();
   zkocaml_enter_callback();
+  CAMLparam0();
 
   CAMLlocal1(completion_callback);
   CAMLlocal4(local_rc, local_strings, local_stat, local_data);
@@ -742,8 +740,8 @@ string_completion_dispatch(int rc,
                            const char *val,
                            const void *data)
 {
-  CAMLparam0();
   zkocaml_enter_callback();
+  CAMLparam0();
 
   CAMLlocal1(completion_callback);
   CAMLlocal3(local_rc, local_val, local_data);
@@ -773,8 +771,8 @@ acl_completion_dispatch(int rc,
                         struct Stat *stat,
                         const void *data)
 {
-  CAMLparam0();
   zkocaml_enter_callback();
+  CAMLparam0();
 
   CAMLlocal1(completion_callback);
   CAMLlocal4(local_rc, local_acl, local_stat, local_data);
