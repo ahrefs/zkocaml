@@ -9,8 +9,8 @@ build: setup.data
 doc: setup.data build
 	$(SETUP) -doc $(DOCFLAGS)
 
-test: setup.data build
-	$(SETUP) -test $(TESTFLAGS)
+test: clean setup.data build
+	@./test.sh
 
 all:
 	$(SETUP) -all $(ALLFLAGS)
@@ -26,6 +26,7 @@ reinstall: setup.data
 
 clean:
 	$(SETUP) -clean $(CLEANFLAGS)
+	rm -f tests/_out_*
 
 distclean:
 	$(SETUP) -distclean $(DISTCLEANFLAGS)
