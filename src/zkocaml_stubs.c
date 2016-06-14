@@ -588,13 +588,14 @@ void_completion_dispatch(int rc, const void *data)
   CAMLlocal1(completion_callback);
   CAMLlocal2(local_rc, local_data);
 
-  zkocaml_completion_context_t *ctx =
-    (zkocaml_completion_context_t *)data;
+  zkocaml_completion_context_t *ctx = (zkocaml_completion_context_t *)data;
   completion_callback = ctx->completion_callback;
   local_rc = zkocaml_enum_error_c2ml(rc);
   local_data = caml_copy_string(ctx->data);
 
   callback2(completion_callback, local_rc, local_data);
+
+  caml_remove_generational_global_root(&(ctx->completion_callback));
 
   zkocaml_leave_callback();
   CAMLreturn0;
@@ -615,14 +616,15 @@ stat_completion_dispatch(int rc,
   CAMLlocal1(completion_callback);
   CAMLlocal3(local_rc, local_stat, local_data);
 
-  zkocaml_completion_context_t *ctx =
-    (zkocaml_completion_context_t *)data;
+  zkocaml_completion_context_t *ctx = (zkocaml_completion_context_t *)data;
   completion_callback = ctx->completion_callback;
   local_rc = zkocaml_enum_error_c2ml(rc);
   local_stat = zkocaml_build_stat_struct(stat);
   local_data = caml_copy_string(ctx->data);
 
   callback3(completion_callback, local_rc, local_stat, local_data);
+
+  caml_remove_generational_global_root(&(ctx->completion_callback));
 
   zkocaml_leave_callback();
   CAMLreturn0;
@@ -646,8 +648,7 @@ data_completion_dispatch(int rc,
   CAMLlocal5(local_rc, local_val, local_val_len, local_stat, local_data);
   CAMLlocalN(args, 5);
 
-  zkocaml_completion_context_t *ctx =
-    (zkocaml_completion_context_t *)data;
+  zkocaml_completion_context_t *ctx = (zkocaml_completion_context_t *)data;
   completion_callback = ctx->completion_callback;
   local_rc = zkocaml_enum_error_c2ml(rc);
   local_val = caml_copy_string(val);
@@ -662,6 +663,8 @@ data_completion_dispatch(int rc,
   Store_field(args, 4, local_data);
 
   callbackN(completion_callback, 5, args);
+
+  caml_remove_generational_global_root(&(ctx->completion_callback));
 
   zkocaml_leave_callback();
   CAMLreturn0;
@@ -682,14 +685,15 @@ strings_completion_dispatch(int rc,
   CAMLlocal1(completion_callback);
   CAMLlocal3(local_rc, local_strings, local_data);
 
-  zkocaml_completion_context_t *ctx =
-    (zkocaml_completion_context_t *)data;
+  zkocaml_completion_context_t *ctx = (zkocaml_completion_context_t *)data;
   completion_callback = ctx->completion_callback;
   local_rc = zkocaml_enum_error_c2ml(rc);
   local_strings = zkocaml_build_strings_struct(strings);
   local_data = caml_copy_string(ctx->data);
 
   callback3(completion_callback, local_rc, local_strings, local_data);
+
+  caml_remove_generational_global_root(&(ctx->completion_callback));
 
   zkocaml_leave_callback();
   CAMLreturn0;
@@ -712,8 +716,7 @@ strings_stat_completion_dispatch(int rc,
   CAMLlocal4(local_rc, local_strings, local_stat, local_data);
   CAMLlocalN(args, 4);
 
-  zkocaml_completion_context_t *ctx =
-    (zkocaml_completion_context_t *)data;
+  zkocaml_completion_context_t *ctx = (zkocaml_completion_context_t *)data;
   completion_callback = ctx->completion_callback;
   local_rc = zkocaml_enum_error_c2ml(rc);
   local_strings = zkocaml_build_strings_struct(strings);
@@ -726,6 +729,8 @@ strings_stat_completion_dispatch(int rc,
   Store_field(args, 3, local_data);
 
   callbackN(completion_callback, 4, args);
+
+  caml_remove_generational_global_root(&(ctx->completion_callback));
 
   zkocaml_leave_callback();
   CAMLreturn0;
@@ -757,6 +762,8 @@ string_completion_dispatch(int rc,
 
   callback3(completion_callback, local_rc, local_val, local_data);
 
+  caml_remove_generational_global_root(&(ctx->completion_callback));
+
   zkocaml_leave_callback();
   CAMLreturn0;
 }
@@ -778,8 +785,7 @@ acl_completion_dispatch(int rc,
   CAMLlocal4(local_rc, local_acl, local_stat, local_data);
   CAMLlocalN(args, 4);
 
-  zkocaml_completion_context_t *ctx =
-    (zkocaml_completion_context_t *)data;
+  zkocaml_completion_context_t *ctx = (zkocaml_completion_context_t *)data;
   completion_callback = ctx->completion_callback;
   local_rc = zkocaml_enum_error_c2ml(rc);
   local_acl = zkocaml_build_acls_struct(acl);
@@ -792,6 +798,8 @@ acl_completion_dispatch(int rc,
   Store_field(args, 3, local_data);
 
   callbackN(completion_callback, 4, args);
+
+  caml_remove_generational_global_root(&(ctx->completion_callback));
 
   zkocaml_leave_callback();
   CAMLreturn0;
