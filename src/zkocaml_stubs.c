@@ -566,6 +566,8 @@ watcher_dispatch(zhandle_t *zh,
 
   callbackN(ctx->watcher_callback, 5, args);
 
+  if (!ctx->global) caml_remove_generational_global_root(&(ctx->watcher_callback));
+
   zkocaml_leave_callback();
   CAMLreturn0;
 }
@@ -860,6 +862,7 @@ zkocaml_init_native(value host,
       malloc(sizeof(zkocaml_watcher_context_t));
   ctx->watcher_ctx = String_val(context);
   ctx->watcher_callback = watcher_callback;
+  ctx->global = 1;
 
   caml_register_generational_global_root(&(ctx->watcher_callback));
 
@@ -1286,6 +1289,7 @@ zkocaml_awexists_native(value zh,
       malloc(sizeof(zkocaml_watcher_context_t));
   local_ctx->watcher_ctx = String_val(watcher_ctx);
   local_ctx->watcher_callback = watcher_callback;
+  local_ctx->global = 0;
   zkocaml_completion_context_t *local_data =
     (zkocaml_completion_context_t *)malloc(sizeof(zkocaml_completion_context_t));
   local_data->data = strdup(String_val(data));
@@ -1417,6 +1421,7 @@ zkocaml_awget_native(value zh,
       malloc(sizeof(zkocaml_watcher_context_t));
   local_ctx->watcher_ctx = String_val(watcher_ctx);
   local_ctx->watcher_callback = watcher_callback;
+  local_ctx->global = 0;
   zkocaml_completion_context_t *local_data =
     (zkocaml_completion_context_t *)malloc(sizeof(zkocaml_completion_context_t));
   local_data->data = strdup(String_val(data));
@@ -1618,6 +1623,7 @@ zkocaml_awget_children_native(value zh,
       malloc(sizeof(zkocaml_watcher_context_t));
   local_ctx->watcher_ctx = String_val(watcher_ctx);
   local_ctx->watcher_callback = watcher_callback;
+  local_ctx->global = 0;
   zkocaml_completion_context_t *local_data =
     (zkocaml_completion_context_t *)malloc(sizeof(zkocaml_completion_context_t));
   local_data->data = strdup(String_val(data));
@@ -1753,6 +1759,7 @@ zkocaml_awget_children2_native(value zh,
       malloc(sizeof(zkocaml_watcher_context_t));
   local_ctx->watcher_ctx = String_val(watcher_ctx);
   local_ctx->watcher_callback = watcher_callback;
+  local_ctx->global = 0;
   zkocaml_completion_context_t *local_data =
     (zkocaml_completion_context_t *)malloc(sizeof(zkocaml_completion_context_t));
   local_data->data = strdup(String_val(data));
@@ -2322,6 +2329,7 @@ zkocaml_wexists(value zh,
       malloc(sizeof(zkocaml_watcher_context_t));
   local_ctx->watcher_ctx = String_val(watcher_ctx);
   local_ctx->watcher_callback = watcher_callback;
+  local_ctx->global = 0;
 
   caml_register_generational_global_root(&(local_ctx->watcher_callback));
 
@@ -2448,6 +2456,7 @@ zkocaml_wget(value zh,
       malloc(sizeof(zkocaml_watcher_context_t));
   local_ctx->watcher_ctx = String_val(watcher_ctx);
   local_ctx->watcher_callback = watcher_callback;
+  local_ctx->global = 0;
 
   caml_register_generational_global_root(&(local_ctx->watcher_callback));
 
@@ -2655,6 +2664,7 @@ zkocaml_wget_children(value zh,
       malloc(sizeof(zkocaml_watcher_context_t));
   local_ctx->watcher_ctx = String_val(watcher_ctx);
   local_ctx->watcher_callback = watcher_callback;
+  local_ctx->global = 0;
 
   caml_register_generational_global_root(&(local_ctx->watcher_callback));
 
@@ -2777,6 +2787,7 @@ zkocaml_wget_children2(value zh,
       malloc(sizeof(zkocaml_watcher_context_t));
   local_ctx->watcher_ctx = String_val(watcher_ctx);
   local_ctx->watcher_callback = watcher_callback;
+  local_ctx->global = 0;
   const char *local_path = String_val(path);
 
   caml_register_generational_global_root(&(local_ctx->watcher_callback));

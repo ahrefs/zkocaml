@@ -44,6 +44,7 @@ typedef struct zkocaml_handle_s_ {
 typedef struct zkocaml_watcher_context_s_ {
   void *watcher_ctx;
   value watcher_callback;
+  int global;
 } zkocaml_watcher_context_t;
 
 /**

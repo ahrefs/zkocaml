@@ -100,30 +100,30 @@ external adelete :
 external aexists :
   zhandle -> string -> int -> stat_completion_callback -> string -> error
   = "zkocaml_aexists"
-(* external awexists : *)
-(*   zhandle -> string -> watcher_callback -> string -> stat_completion_callback -> string -> error *)
-(*   = "zkocaml_awexists_native" "zkocaml_awexists_bytecode" *)
+external awexists :
+  zhandle -> string -> watcher_callback -> string -> stat_completion_callback -> string -> error
+  = "zkocaml_awexists_native" "zkocaml_awexists_bytecode"
 external aget :
   zhandle -> string -> int -> data_completion_callback -> string -> error
   = "zkocaml_aget"
-(* external awget : *)
-(*   zhandle -> string -> watcher_callback -> string -> data_completion_callback -> string -> error *)
-(*   = "zkocaml_awget_native" "zkocaml_awget_bytecode" *)
+external awget :
+  zhandle -> string -> watcher_callback -> string -> data_completion_callback -> string -> error
+  = "zkocaml_awget_native" "zkocaml_awget_bytecode"
 external aset :
   zhandle -> string -> string -> int -> stat_completion_callback -> string -> error
   = "zkocaml_aset_native" "zkocaml_aset_bytecode"
 external aget_children :
   zhandle -> string -> int -> strings_completion_callback -> string -> error
   = "zkocaml_aget_children"
-(* external awget_children : *)
-(*   zhandle -> string -> watcher_callback -> string -> strings_completion_callback -> string -> error *)
-(*   = "zkocaml_awget_children_native" "zkocaml_awget_children_bytecode" *)
+external awget_children :
+  zhandle -> string -> watcher_callback -> string -> strings_completion_callback -> string -> error
+  = "zkocaml_awget_children_native" "zkocaml_awget_children_bytecode"
 external aget_children2 :
   zhandle -> string -> int -> strings_stat_completion_callback -> string -> error
   = "zkocaml_aget_children2"
-(* external awget_children2 : *)
-(*   zhandle -> string -> watcher_callback -> string -> strings_stat_completion_callback -> string -> error *)
-(*   = "zkocaml_awget_children2_native" "zkocaml_awget_children2_bytecode" *)
+external awget_children2 :
+  zhandle -> string -> watcher_callback -> string -> strings_stat_completion_callback -> string -> error
+  = "zkocaml_awget_children2_native" "zkocaml_awget_children2_bytecode"
 external async :
   zhandle -> string -> string_completion_callback -> string -> error = "zkocaml_async"
 external aset_acl :
@@ -140,14 +140,14 @@ external deterministic_conn_order : bool -> unit  = "zkocaml_deterministic_conn_
 external create : zhandle -> string -> string -> acls -> create_flag array -> error * string = "zkocaml_create"
 external delete : zhandle -> string -> int -> error = "zkocaml_delete"
 external exists : zhandle -> string -> int -> error * stat = "zkocaml_exists"
-(* external wexists : zhandle -> string -> watcher_callback -> string -> error * stat = "zkocaml_wexists" *)
+external wexists : zhandle -> string -> watcher_callback -> string -> error * stat = "zkocaml_wexists"
 external get : zhandle -> string -> int -> error * string * stat = "zkocaml_get"
-(* external wget : zhandle -> string -> watcher_callback -> string -> error * string * stat = "zkocaml_wget" *)
+external wget : zhandle -> string -> watcher_callback -> string -> error * string * stat = "zkocaml_wget"
 external set : zhandle -> string -> string -> int -> error = "zkocaml_set"
 external set2 : zhandle -> string -> string -> int -> error * stat = "zkocaml_set2"
 external get_children : zhandle -> string -> int -> error * strings = "zkocaml_get_children"
-(* external wget_children : zhandle -> string -> watcher_callback -> string -> error * strings = "zkocaml_wget_children" *)
+external wget_children : zhandle -> string -> watcher_callback -> string -> error * strings = "zkocaml_wget_children"
 external get_children2 : zhandle -> string -> int -> error * strings * stat = "zkocaml_get_children2"
-(* external wget_children2 : zhandle -> string -> watcher_callback -> string -> error * strings * stat = "zkocaml_wget_children2" *)
+external wget_children2 : zhandle -> string -> watcher_callback -> string -> error * strings * stat = "zkocaml_wget_children2"
 external get_acl : zhandle -> string -> error * acls * stat = "zkocaml_get_acl"
 external set_acl : zhandle -> string -> int -> acls -> error = "zkocaml_set_acl"
