@@ -37,11 +37,13 @@
   int zkocaml_c_thread_registered = caml_c_thread_register(); \
   if (zkocaml_c_thread_registered) caml_acquire_runtime_system()
 
-#define zkocaml_leave_callback()     \
-  if (zkocaml_c_thread_registered) { \
-    caml_release_runtime_system(); \
-    caml_c_thread_unregister(); \
-  }
+#define zkocaml_leave_callback()                \
+    do {                                        \
+        if (zkocaml_c_thread_registered) {      \
+            caml_release_runtime_system();      \
+            caml_c_thread_unregister();         \
+        }                                       \
+    } while (0)
 
 #define zkocaml_handle_struct_val(v) \
   (*(zkocaml_handle_t **)Data_custom_val(v))
@@ -538,6 +540,37 @@ zkocaml_build_acls_struct(const struct ACL_vector *acls)
   CAMLreturn(v);
 }
 
+#define DISPOSABLE 0
+#define PERMANENT 1
+
+zkocaml_completion_context_t*
+make_completion_context(value data,
+                        value callback)
+{
+    zkocaml_completion_context_t *local_data = (zkocaml_completion_context_t *)
+        malloc(sizeof(zkocaml_completion_context_t));
+    local_data->data = String_val(data);
+    local_data->completion_callback = callback;
+    caml_register_generational_global_root(&(local_data->completion_callback));
+
+    return local_data;
+}
+
+zkocaml_watcher_context_t*
+make_watcher_context(value watcher_ctx,
+                     value callback,
+                     int kind)
+{
+  zkocaml_watcher_context_t *local_ctx = (zkocaml_watcher_context_t *)
+      malloc(sizeof(zkocaml_watcher_context_t));
+  local_ctx->watcher_ctx = String_val(watcher_ctx);
+  local_ctx->watcher_callback = callback;
+  local_ctx->permanent = kind;
+  caml_register_generational_global_root(&(local_ctx->watcher_callback));
+
+  return local_ctx;
+}
+
 static void
 watcher_dispatch(zhandle_t *zh,
                  int type,
@@ -566,7 +599,7 @@ watcher_dispatch(zhandle_t *zh,
 
   callbackN(ctx->watcher_callback, 5, args);
 
-  if (!ctx->global) caml_remove_generational_global_root(&(ctx->watcher_callback));
+  if (!ctx->permanent) caml_remove_generational_global_root(&(ctx->watcher_callback));
 
   zkocaml_leave_callback();
   CAMLreturn0;
@@ -858,13 +891,7 @@ zkocaml_init_native(value host,
   int local_recv_timeout = Long_val(recv_timeout);
   clientid_t *cid = NULL;
 
-  zkocaml_watcher_context_t *ctx = (zkocaml_watcher_context_t *)
-      malloc(sizeof(zkocaml_watcher_context_t));
-  ctx->watcher_ctx = String_val(context);
-  ctx->watcher_callback = watcher_callback;
-  ctx->global = 1;
-
-  caml_register_generational_global_root(&(ctx->watcher_callback));
+  zkocaml_watcher_context_t *ctx = make_watcher_context(context, watcher_callback, PERMANENT);;
 
   cid = zkocaml_parse_clientid(clientid);
   zhandle_t *handle = zookeeper_init(local_host, watcher_dispatch, local_recv_timeout, cid, ctx, 0);
@@ -1075,6 +1102,7 @@ zkocaml_state(value zh)
  *   ZINVALIDSTATE - zhandle state is either ZOO_SESSION_EXPIRED_STATE or ZOO_AUTH_FAILED_STATE
  *   ZMARSHALLINGERROR - failed to marshall a request; possibly, out of memory
  */
+
 CAMLprim value
 zkocaml_acreate_native(value zh,
                        value path,
@@ -1095,12 +1123,7 @@ zkocaml_acreate_native(value zh,
     local_acl = ZOO_OPEN_ACL_UNSAFE;
   }
   int local_flags = zkocaml_enum_create_flag_ml2c(flags);
-  zkocaml_completion_context_t *local_data =
-    (zkocaml_completion_context_t *)malloc(sizeof(zkocaml_completion_context_t));
-  local_data->data = strdup(String_val(data));
-  local_data->completion_callback = completion;
-
-  caml_register_generational_global_root(&(local_data->completion_callback));
+  zkocaml_completion_context_t *local_data = make_completion_context(data,completion);
 
   int rc = zoo_acreate(zhandle->handle,
                        String_val(path),
@@ -1163,12 +1186,7 @@ zkocaml_adelete(value zh,
   zkocaml_handle_t *zhandle = zkocaml_handle_struct_val(zh);
   const char *local_path = String_val(path);
   int local_version = Int_val(version);
-  zkocaml_completion_context_t *local_data =
-    (zkocaml_completion_context_t *)malloc(sizeof(zkocaml_completion_context_t));
-  local_data->data = strdup(String_val(data));
-  local_data->completion_callback = completion;
-
-  caml_register_generational_global_root(&(local_data->completion_callback));
+  zkocaml_completion_context_t *local_data = make_completion_context(data,completion);
 
   int rc = zoo_adelete(zhandle->handle,
                        local_path,
@@ -1219,12 +1237,7 @@ zkocaml_aexists(value zh,
   zkocaml_handle_t *zhandle = zkocaml_handle_struct_val(zh);
   const char *local_path = String_val(path);
   int local_watch = Int_val(watch);
-  zkocaml_completion_context_t *local_data =
-    (zkocaml_completion_context_t *)malloc(sizeof(zkocaml_completion_context_t));
-  local_data->data = strdup(String_val(data));
-  local_data->completion_callback = completion;
-
-  caml_register_generational_global_root(&(local_data->completion_callback));
+  zkocaml_completion_context_t *local_data = make_completion_context(data,completion);
 
   int rc = zoo_aexists(zhandle->handle,
                        local_path,
@@ -1285,18 +1298,8 @@ zkocaml_awexists_native(value zh,
 
   zkocaml_handle_t *zhandle = zkocaml_handle_struct_val(zh);
   const char *local_path = String_val(path);
-  zkocaml_watcher_context_t *local_ctx = (zkocaml_watcher_context_t *)
-      malloc(sizeof(zkocaml_watcher_context_t));
-  local_ctx->watcher_ctx = String_val(watcher_ctx);
-  local_ctx->watcher_callback = watcher_callback;
-  local_ctx->global = 0;
-  zkocaml_completion_context_t *local_data =
-    (zkocaml_completion_context_t *)malloc(sizeof(zkocaml_completion_context_t));
-  local_data->data = strdup(String_val(data));
-  local_data->completion_callback = completion;
-
-  caml_register_generational_global_root(&(local_ctx->watcher_callback));
-  caml_register_generational_global_root(&(local_data->completion_callback));
+  zkocaml_watcher_context_t *local_ctx = make_watcher_context(watcher_ctx, watcher_callback, DISPOSABLE);
+  zkocaml_completion_context_t *local_data = make_completion_context(data,completion);
 
   int rc = zoo_awexists(zhandle->handle,
                         local_path,
@@ -1354,12 +1357,7 @@ zkocaml_aget(value zh,
   zkocaml_handle_t *zhandle = zkocaml_handle_struct_val(zh);
   const char *local_path = String_val(path);
   int local_watch = Int_val(watch);
-  zkocaml_completion_context_t *local_data =
-    (zkocaml_completion_context_t *)malloc(sizeof(zkocaml_completion_context_t));
-  local_data->data = strdup(String_val(data));
-  local_data->completion_callback = completion;
-
-  caml_register_generational_global_root(&(local_data->completion_callback));
+  zkocaml_completion_context_t *local_data = make_completion_context(data,completion);
 
   int rc = zoo_aget(zhandle->handle,
                     local_path,
@@ -1417,18 +1415,8 @@ zkocaml_awget_native(value zh,
 
   zkocaml_handle_t *zhandle = zkocaml_handle_struct_val(zh);
   const char *local_path = String_val(path);
-  zkocaml_watcher_context_t *local_ctx = (zkocaml_watcher_context_t *)
-      malloc(sizeof(zkocaml_watcher_context_t));
-  local_ctx->watcher_ctx = String_val(watcher_ctx);
-  local_ctx->watcher_callback = watcher_callback;
-  local_ctx->global = 0;
-  zkocaml_completion_context_t *local_data =
-    (zkocaml_completion_context_t *)malloc(sizeof(zkocaml_completion_context_t));
-  local_data->data = strdup(String_val(data));
-  local_data->completion_callback = completion;
-
-  caml_register_generational_global_root(&(local_ctx->watcher_callback));
-  caml_register_generational_global_root(&(local_data->completion_callback));
+  zkocaml_watcher_context_t *local_ctx = make_watcher_context(watcher_ctx, watcher_callback, DISPOSABLE);
+  zkocaml_completion_context_t *local_data = make_completion_context(data,completion);
 
   int rc = zoo_awget(zhandle->handle,
                      local_path,
@@ -1492,12 +1480,7 @@ zkocaml_aset_native(value zh,
   CAMLlocal1(result);
 
   zkocaml_handle_t *zhandle = zkocaml_handle_struct_val(zh);
-  zkocaml_completion_context_t *local_data =
-    (zkocaml_completion_context_t *)malloc(sizeof(zkocaml_completion_context_t));
-  local_data->data = strdup(String_val(data));
-  local_data->completion_callback = completion;
-
-  caml_register_generational_global_root(&(local_data->completion_callback));
+  zkocaml_completion_context_t *local_data = make_completion_context(data,completion);
 
   int rc = zoo_aset(zhandle->handle,
                     String_val(path),
@@ -1556,12 +1539,7 @@ zkocaml_aget_children(value zh,
   zkocaml_handle_t *zhandle = zkocaml_handle_struct_val(zh);
   const char *local_path = String_val(path);
   int local_watch = Int_val(watch);
-  zkocaml_completion_context_t *local_data =
-    (zkocaml_completion_context_t *)malloc(sizeof(zkocaml_completion_context_t));
-  local_data->data = strdup(String_val(data));
-  local_data->completion_callback = completion;
-
-  caml_register_generational_global_root(&(local_data->completion_callback));
+  zkocaml_completion_context_t *local_data = make_completion_context(data,completion);
 
   int rc = zoo_aget_children(zhandle->handle,
                              local_path,
@@ -1619,18 +1597,8 @@ zkocaml_awget_children_native(value zh,
 
   zkocaml_handle_t *zhandle = zkocaml_handle_struct_val(zh);
   const char *local_path = String_val(path);
-  zkocaml_watcher_context_t *local_ctx = (zkocaml_watcher_context_t *)
-      malloc(sizeof(zkocaml_watcher_context_t));
-  local_ctx->watcher_ctx = String_val(watcher_ctx);
-  local_ctx->watcher_callback = watcher_callback;
-  local_ctx->global = 0;
-  zkocaml_completion_context_t *local_data =
-    (zkocaml_completion_context_t *)malloc(sizeof(zkocaml_completion_context_t));
-  local_data->data = strdup(String_val(data));
-  local_data->completion_callback = completion;
-
-  caml_register_generational_global_root(&(local_ctx->watcher_callback));
-  caml_register_generational_global_root(&(local_data->completion_callback));
+  zkocaml_watcher_context_t *local_ctx = make_watcher_context(watcher_ctx, watcher_callback, DISPOSABLE);
+  zkocaml_completion_context_t *local_data = make_completion_context(data,completion);
 
   int rc = zoo_awget_children(zhandle->handle,
                               local_path,
@@ -1690,12 +1658,7 @@ zkocaml_aget_children2(value zh,
   zkocaml_handle_t *zhandle = zkocaml_handle_struct_val(zh);
   const char *local_path = String_val(path);
   int local_watch = Int_val(watch);
-  zkocaml_completion_context_t *local_data =
-    (zkocaml_completion_context_t *)malloc(sizeof(zkocaml_completion_context_t));
-  local_data->data = strdup(String_val(data));
-  local_data->completion_callback = completion;
-
-  caml_register_generational_global_root(&(local_data->completion_callback));
+  zkocaml_completion_context_t *local_data = make_completion_context(data,completion);
 
   int rc = zoo_aget_children2(zhandle->handle,
                               local_path,
@@ -1755,18 +1718,8 @@ zkocaml_awget_children2_native(value zh,
 
   zkocaml_handle_t *zhandle = zkocaml_handle_struct_val(zh);
   const char *local_path = String_val(path);
-  zkocaml_watcher_context_t *local_ctx = (zkocaml_watcher_context_t *)
-      malloc(sizeof(zkocaml_watcher_context_t));
-  local_ctx->watcher_ctx = String_val(watcher_ctx);
-  local_ctx->watcher_callback = watcher_callback;
-  local_ctx->global = 0;
-  zkocaml_completion_context_t *local_data =
-    (zkocaml_completion_context_t *)malloc(sizeof(zkocaml_completion_context_t));
-  local_data->data = strdup(String_val(data));
-  local_data->completion_callback = completion;
-
-  caml_register_generational_global_root(&(local_ctx->watcher_callback));
-  caml_register_generational_global_root(&(local_data->completion_callback));
+  zkocaml_watcher_context_t *local_ctx = make_watcher_context(watcher_ctx, watcher_callback, DISPOSABLE);
+  zkocaml_completion_context_t *local_data = make_completion_context(data,completion);
 
   int rc = zoo_awget_children2(zhandle->handle,
                                local_path,
@@ -1816,12 +1769,7 @@ zkocaml_async(value zh, value path, value completion, value data)
 
   zkocaml_handle_t *zhandle = zkocaml_handle_struct_val(zh);
   const char *local_path = String_val(path);
-  zkocaml_completion_context_t *local_data =
-    (zkocaml_completion_context_t *)malloc(sizeof(zkocaml_completion_context_t));
-  local_data->data = strdup(String_val(data));
-  local_data->completion_callback = completion;
-
-  caml_register_generational_global_root(&(local_data->completion_callback));
+  zkocaml_completion_context_t *local_data = make_completion_context(data,completion);
 
   int rc = zoo_async(zhandle->handle,
                      local_path,
@@ -1862,12 +1810,7 @@ zkocaml_aget_acl(value zh, value path, value completion, value data)
 
   zkocaml_handle_t *zhandle = zkocaml_handle_struct_val(zh);
   const char *local_path = String_val(path);
-  zkocaml_completion_context_t *local_data =
-    (zkocaml_completion_context_t *)malloc(sizeof(zkocaml_completion_context_t));
-  local_data->data = strdup(String_val(data));
-  local_data->completion_callback = completion;
-
-  caml_register_generational_global_root(&(local_data->completion_callback));
+  zkocaml_completion_context_t *local_data = make_completion_context(data,completion);
 
   int rc = zoo_aget_acl(zhandle->handle,
                         local_path,
@@ -1924,12 +1867,7 @@ zkocaml_aset_acl_native(value zh,
   if (r == 0) {
     local_acl = ZOO_OPEN_ACL_UNSAFE;
   }
-  zkocaml_completion_context_t *local_data =
-    (zkocaml_completion_context_t *)malloc(sizeof(zkocaml_completion_context_t));
-  local_data->data = strdup(String_val(data));
-  local_data->completion_callback = completion;
-
-  caml_register_generational_global_root(&(local_data->completion_callback));
+  zkocaml_completion_context_t *local_data = make_completion_context(data,completion);
 
   int rc = zoo_aset_acl(zhandle->handle,
                         local_path,
@@ -2010,12 +1948,7 @@ zkocaml_add_auth(value zh,
   CAMLlocal1(result);
 
   zkocaml_handle_t *zhandle = zkocaml_handle_struct_val(zh);
-  zkocaml_completion_context_t *local_data =
-    (zkocaml_completion_context_t *)malloc(sizeof(zkocaml_completion_context_t));
-  local_data->data = strdup(String_val(data));
-  local_data->completion_callback = completion;
-
-  caml_register_generational_global_root(&(local_data->completion_callback));
+  zkocaml_completion_context_t *local_data = make_completion_context(data,completion);
 
   int rc = zoo_add_auth(zhandle->handle,
                         String_val(scheme),
@@ -2325,13 +2258,7 @@ zkocaml_wexists(value zh,
   struct Stat local_stat;
   zkocaml_handle_t *zhandle = zkocaml_handle_struct_val(zh);
   const char *local_path = String_val(path);
-  zkocaml_watcher_context_t *local_ctx = (zkocaml_watcher_context_t *)
-      malloc(sizeof(zkocaml_watcher_context_t));
-  local_ctx->watcher_ctx = String_val(watcher_ctx);
-  local_ctx->watcher_callback = watcher_callback;
-  local_ctx->global = 0;
-
-  caml_register_generational_global_root(&(local_ctx->watcher_callback));
+  zkocaml_watcher_context_t *local_ctx = make_watcher_context(watcher_ctx, watcher_callback, DISPOSABLE);
 
   int rc = zoo_wexists(zhandle->handle,
                        local_path,
@@ -2452,13 +2379,7 @@ zkocaml_wget(value zh,
                       sizeof(char) * path_buffer_size);
   memset(path_buffer, 0, path_buffer_size);
   const char *local_path = String_val(path);
-  zkocaml_watcher_context_t *local_ctx = (zkocaml_watcher_context_t *)
-      malloc(sizeof(zkocaml_watcher_context_t));
-  local_ctx->watcher_ctx = String_val(watcher_ctx);
-  local_ctx->watcher_callback = watcher_callback;
-  local_ctx->global = 0;
-
-  caml_register_generational_global_root(&(local_ctx->watcher_callback));
+  zkocaml_watcher_context_t *local_ctx = make_watcher_context(watcher_ctx, watcher_callback, DISPOSABLE);
 
   int rc = zoo_wget(zhandle->handle,
                     local_path,
@@ -2607,9 +2528,9 @@ zkocaml_get_children(value zh, value path, value watch)
   int local_watch = Int_val(watch);
 
   int rc = zoo_get_children(zhandle->handle,
-                      local_path,
-                      local_watch,
-                      (struct String_vector *)&local_strings);
+                            local_path,
+                            local_watch,
+                            (struct String_vector *)&local_strings);
 
   error = zkocaml_enum_error_c2ml(rc);
   strs = zkocaml_build_strings_struct(&local_strings);
@@ -2660,13 +2581,7 @@ zkocaml_wget_children(value zh,
   struct String_vector local_strings;
   zkocaml_handle_t *zhandle = zkocaml_handle_struct_val(zh);
   const char *local_path = String_val(path);
-  zkocaml_watcher_context_t *local_ctx = (zkocaml_watcher_context_t *)
-      malloc(sizeof(zkocaml_watcher_context_t));
-  local_ctx->watcher_ctx = String_val(watcher_ctx);
-  local_ctx->watcher_callback = watcher_callback;
-  local_ctx->global = 0;
-
-  caml_register_generational_global_root(&(local_ctx->watcher_callback));
+  zkocaml_watcher_context_t *local_ctx = make_watcher_context(watcher_ctx, watcher_callback, DISPOSABLE);
 
   int rc = zoo_wget_children(zhandle->handle,
                              local_path,
@@ -2723,10 +2638,10 @@ zkocaml_get_children2(value zh,
   int local_watch = Int_val(watch);
 
   int rc = zoo_get_children2(zhandle->handle,
-                      local_path,
-                      local_watch,
-                      (struct String_vector *)&local_strings,
-                      (struct Stat *)&local_stat);
+                             local_path,
+                             local_watch,
+                             (struct String_vector *)&local_strings,
+                             (struct Stat *)&local_stat);
 
   error = zkocaml_enum_error_c2ml(rc);
   strs = zkocaml_build_strings_struct(&local_strings);
@@ -2771,6 +2686,7 @@ zkocaml_get_children2(value zh,
  *   ZINVALIDSTATE - zhandle state is either ZOO_SESSION_EXPIRED_STATE or ZOO_AUTH_FAILED_STATE
  *   ZMARSHALLINGERROR - failed to marshall a request; possibly, out of memory
  */
+
 CAMLprim value
 zkocaml_wget_children2(value zh,
                        value path,
@@ -2783,21 +2699,16 @@ zkocaml_wget_children2(value zh,
   struct String_vector local_strings;
   struct Stat local_stat;
   zkocaml_handle_t *zhandle = zkocaml_handle_struct_val(zh);
-  zkocaml_watcher_context_t *local_ctx = (zkocaml_watcher_context_t *)
-      malloc(sizeof(zkocaml_watcher_context_t));
-  local_ctx->watcher_ctx = String_val(watcher_ctx);
-  local_ctx->watcher_callback = watcher_callback;
-  local_ctx->global = 0;
+  zkocaml_watcher_context_t *local_ctx = make_watcher_context(watcher_ctx, watcher_callback, DISPOSABLE);
+
   const char *local_path = String_val(path);
 
-  caml_register_generational_global_root(&(local_ctx->watcher_callback));
-
   int rc = zoo_wget_children2(zhandle->handle,
-                      local_path,
-                      watcher_dispatch,
-                      local_ctx,
-                      (struct String_vector *)&local_strings,
-                      (struct Stat *)&local_stat);
+                              local_path,
+                              watcher_dispatch,
+                              local_ctx,
+                              (struct String_vector *)&local_strings,
+                              (struct Stat *)&local_stat);
 
   error = zkocaml_enum_error_c2ml(rc);
   strs = zkocaml_build_strings_struct(&local_strings);
@@ -2842,9 +2753,9 @@ zkocaml_get_acl(value zh, value path)
   const char *local_path = String_val(path);
 
   int rc = zoo_get_acl(zhandle->handle,
-                      local_path,
-                      (struct ACL_vector*)&local_acl,
-                      (struct Stat *)&local_stat);
+                       local_path,
+                       (struct ACL_vector*)&local_acl,
+                       (struct Stat *)&local_stat);
 
   error = zkocaml_enum_error_c2ml(rc);
   acls = zkocaml_build_acls_struct(&local_acl);
