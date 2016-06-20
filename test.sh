@@ -1,6 +1,8 @@
 #!/bin/bash
 
-TEST_D=$(realpath tests)
+BASE=$(realpath .)
+TEST_D=$BASE/tests
+SRC_D=$BASE/src
 TESTS=$(ls $TEST_D)
 TOTAL=0
 PASSED=0
@@ -24,8 +26,9 @@ echo "Running tests:"
 for t in $TESTS; do
     TOTAL=$[TOTAL + 1]
     printf "$t "
+    ocamlfind ocamlopt -o $TEST_D/_bin_$t -thread -linkpkg -package ctypes zkocaml.cmxa -cclib -L. $TEST_D/$t
     OUT=$TEST_D/_out_$t
-    cat "$TEST_D/$t" | ocaml &> $OUT
+    $TEST_D/_bin_$t &> $OUT
     check_test $OUT
 done;
 

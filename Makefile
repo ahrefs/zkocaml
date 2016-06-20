@@ -26,7 +26,7 @@ reinstall: setup.data
 
 clean:
 	$(SETUP) -clean $(CLEANFLAGS)
-	rm -f tests/_out_*
+	rm -f tests/_out_* tests/_bin_* tests/*.o tests/*.cm?
 
 distclean:
 	$(SETUP) -distclean $(DISTCLEANFLAGS)

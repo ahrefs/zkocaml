@@ -1,14 +1,15 @@
-#load "zkocaml.cma";;
 open Zookeeper
-open Gc
+open Printf
 
-let acl = [|{perms = 0x1f; scheme = "world"; id = "anyone"}|];;
-let create_flag = [|Zookeeper.ZOO_EPHEMERAL|];;
+let acl = [|{perms = 0x1f; scheme = "world"; id = "anyone"}|]
+let create_flag = [|Zookeeper.ZOO_EPHEMERAL|]
 
-let watcher_fn zhandle event_type conn_state path watcher_ctx =
-  print (show_event event_type);;
+let () =
+  let watcher_fn zhandle event_type conn_state path watcher_ctx =
+    printf "%s %s\n" (show_event event_type) path
+  in
 
-let zh = init "127.0.0.1:2181" watcher_fn 3600 {client_id = 0L; passwd=""} "hello world" 0;;
+  let zh = init "127.0.0.1:2181" watcher_fn 3600 {client_id = 0L; passwd=""} "hello world" 0 in
 
-Zookeeper.close zh;;
-print "DONE";;
+  ignore @@ close zh;
+  printf "DONE"
