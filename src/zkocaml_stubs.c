@@ -31,6 +31,10 @@
 
 #include <zookeeper/zookeeper.h>
 
+#ifndef CAMLdrop
+#define CAMLdrop caml_local_roots = caml__frame
+#endif
+
 #include "zkocaml_stubs.h"
 
 #define zkocaml_enter_callback() \
@@ -601,8 +605,8 @@ watcher_dispatch(zhandle_t *zh,
 
   if (!ctx->permanent) caml_remove_generational_global_root(&(ctx->watcher_callback));
 
+  CAMLdrop;
   zkocaml_leave_callback();
-  CAMLreturn0;
 }
 
 /**
@@ -632,8 +636,8 @@ void_completion_dispatch(int rc, const void *data)
 
   caml_remove_generational_global_root(&(ctx->completion_callback));
 
+  CAMLdrop;
   zkocaml_leave_callback();
-  CAMLreturn0;
 }
 
 /**
@@ -661,8 +665,8 @@ stat_completion_dispatch(int rc,
 
   caml_remove_generational_global_root(&(ctx->completion_callback));
 
+  CAMLdrop;
   zkocaml_leave_callback();
-  CAMLreturn0;
 }
 /**
  * Called when an asynchronous call that returns a stat structure and
@@ -701,8 +705,8 @@ data_completion_dispatch(int rc,
 
   caml_remove_generational_global_root(&(ctx->completion_callback));
 
+  CAMLdrop;
   zkocaml_leave_callback();
-  CAMLreturn0;
 }
 
 /**
@@ -730,8 +734,8 @@ strings_completion_dispatch(int rc,
 
   caml_remove_generational_global_root(&(ctx->completion_callback));
 
+  CAMLdrop;
   zkocaml_leave_callback();
-  CAMLreturn0;
 }
 
 /**
@@ -767,8 +771,8 @@ strings_stat_completion_dispatch(int rc,
 
   caml_remove_generational_global_root(&(ctx->completion_callback));
 
+  CAMLdrop;
   zkocaml_leave_callback();
-  CAMLreturn0;
 }
 
 /**
@@ -799,8 +803,8 @@ string_completion_dispatch(int rc,
 
   caml_remove_generational_global_root(&(ctx->completion_callback));
 
+  CAMLdrop;
   zkocaml_leave_callback();
-  CAMLreturn0;
 }
 
 /**
@@ -836,8 +840,8 @@ acl_completion_dispatch(int rc,
 
   caml_remove_generational_global_root(&(ctx->completion_callback));
 
+  CAMLdrop;
   zkocaml_leave_callback();
-  CAMLreturn0;
 }
 
 /**
