@@ -151,7 +151,10 @@ static struct custom_operations zhandle_struct_ops = {
   custom_compare_default,
   custom_hash_default,
   custom_serialize_default,
-  custom_deserialize_default
+  custom_deserialize_default,
+#if defined(custom_compare_ext_default)
+  custom_compare_ext_default,
+#endif
 };
 
 static value
