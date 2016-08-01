@@ -20,6 +20,8 @@
 #ifndef _ZKOCAML_H_
 #define _ZKOCAML_H_
 
+#include <stdatomic.h>
+
 #include <caml/mlvalues.h>
 #include <caml/memory.h>
 #include <caml/alloc.h>
@@ -31,20 +33,13 @@
 #include <zookeeper/zookeeper.h>
 
 /**
- * The zkocaml_handle_t wraps a zookeeper connection handle
- * which indicates a zookeeper session that corresponds to that handle.
- */
-typedef struct zkocaml_handle_s_ {
-  zhandle_t *handle;
-} zkocaml_handle_t;
-
-/**
  * The zkocaml_watcher_context_t wraps a zookeeper watcher context.
  */
 typedef struct zkocaml_watcher_context_s_ {
   void *watcher_ctx;
   value watcher_callback;
   int permanent;
+  value zh;
 } zkocaml_watcher_context_t;
 
 /**

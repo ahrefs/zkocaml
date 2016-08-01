@@ -434,6 +434,14 @@ let show_event e =
   | ZOO_SESSION_EVENT -> "ZOO_SESSION_EVENT"
   | ZOO_NOTWATCHING_EVENT -> "ZOO_NOTWATCHING_EVENT"
 
+let show_state s =
+  match s with
+  | ZOO_EXPIRED_SESSION_STATE -> "ZOO_EXPIRED_SESSION_STATE"
+  | ZOO_AUTH_FAILED_STATE -> "ZOO_AUTH_FAILED_STATE"
+  | ZOO_CONNECTING_STATE -> "ZOO_CONNECTING_STATE"
+  | ZOO_ASSOCIATING_STATE -> "ZOO_ASSOCIATING_STATE"
+  | ZOO_CONNECTED_STATE -> "ZOO_CONNECTED_STATE"
+
 (*
 
 (** This ID represents anyone. *)
@@ -463,9 +471,18 @@ external init:
   -> int
   -> zhandle = "zkocaml_init_bytecode" "zkocaml_init_native"
 
+let init servers cb timeout cid ctx unusedflag =
+  let handle = init servers cb timeout cid ctx unusedflag in
+  Thread.delay 0.01; (* empirical :\ *)
+  handle
+
 external close:
      zhandle
   -> error = "zkocaml_close"
+
+let close zhandle =
+  Thread.delay 0.025; (* empirical :\ *)
+  close zhandle
 
 external client_id:
      zhandle

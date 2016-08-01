@@ -78,11 +78,13 @@ type acl_completion_callback = error -> acls -> stat -> string -> unit
 
 val show_error : error -> string
 val show_event : event -> string
+val show_state : state -> string
 
-external init :
+val init :
   string -> watcher_callback -> int -> client_id -> string -> int -> zhandle
-  = "zkocaml_init_bytecode" "zkocaml_init_native"
-external close : zhandle -> error = "zkocaml_close"
+  (* = "zkocaml_init_bytecode" "zkocaml_init_native" *)
+val close : zhandle -> error
+  (* = "zkocaml_close" *)
 external client_id : zhandle -> client_id = "zkocaml_client_id"
 external recv_timeout : zhandle -> int = "zkocaml_recv_timeout"
 external get_context : zhandle -> string = "zkocaml_get_context"
@@ -90,7 +92,6 @@ external set_context : zhandle -> string -> unit = "zkocaml_set_context"
 external set_watcher : zhandle -> watcher_callback -> watcher_callback = "zkocaml_set_watcher"
 external get_connected_host : zhandle -> string = "zkocaml_get_connected_host"
 external zstate : zhandle -> state = "zkocaml_state"
-(** no async! *)
 external acreate :
   zhandle -> string -> string -> acls -> create_flag array -> string_completion_callback -> string -> error
   = "zkocaml_acreate_bytecode" "zkocaml_acreate_native"

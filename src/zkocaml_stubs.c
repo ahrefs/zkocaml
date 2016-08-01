@@ -49,8 +49,8 @@
         }                                       \
     } while (0)
 
-#define zkocaml_handle_struct_val(v) \
-  (*(zkocaml_handle_t **)Data_custom_val(v))
+/* #define zkocaml_handle_struct_val(v) \ */
+/*   (*(zkocaml_handle_t **)Data_custom_val(v)) */
 
 #define zkocaml_table_len(v) \
   sizeof(v) / sizeof(v[0])
@@ -123,54 +123,6 @@ static const ZOO_CREATE_FLAG_AUX ZOO_CREATE_FLAG_TABLE[] = {
     ZOO_EPHEMERAL_AUX,
     ZOO_SEQUENCE_AUX
 };
-
-static void
-zkocaml_handle_struct_finalize(value ve)
-{
-}
-
-static int
-zkocaml_handle_struct_compare(value v1, value v2)
-{
-  zkocaml_handle_t *h1 = zkocaml_handle_struct_val(v1);
-  zkocaml_handle_t *h2 = zkocaml_handle_struct_val(v2);
-  if (h1 == h2) return 0;
-  else if (h1 < h2) return -1;
-  return 1;
-}
-
-static long
-zkocaml_handle_struct_hash(value v)
-{
-  return (long) zkocaml_handle_struct_val(v);
-}
-
-static struct custom_operations zhandle_struct_ops = {
-  "org.apache.zookeeper",
-  custom_finalize_default,
-  custom_compare_default,
-  custom_hash_default,
-  custom_serialize_default,
-  custom_deserialize_default,
-#if defined(custom_compare_ext_default)
-  custom_compare_ext_default,
-#endif
-};
-
-static value
-zkocaml_copy_zhandle(zhandle_t *zh)
-{
-  CAMLparam0();
-  CAMLlocal1(handle);
-
-  zkocaml_handle_t *zhandle = (zkocaml_handle_t *) malloc(sizeof(zkocaml_handle_t));
-  zhandle->handle = zh;
-
-  handle = caml_alloc_custom(&zhandle_struct_ops, sizeof(zkocaml_handle_t *), 0, 1);
-  zkocaml_handle_struct_val(handle) = zhandle;
-
-  CAMLreturn(handle);
-}
 
 static enum ZOO_ERRORS
 zkocaml_enum_error_ml2c(value v)
@@ -467,7 +419,6 @@ zkocaml_parse_acls(value v, struct ACL_vector *acls)
   acls->count = vlen;
   acls->data = (struct ACL *)calloc(acls->count, sizeof(struct ACL));
   for (; i < vlen; i++) {
-      /* acl = Field(v, i); */
       acls->data[i].perms = Field(Field(v, i), 0);
       acls->data[i].id.scheme = strdup(String_val(Field(Field(v, i), 1)));
       acls->data[i].id.id = strdup(String_val(Field(Field(v, i), 2)));
@@ -479,21 +430,21 @@ zkocaml_parse_acls(value v, struct ACL_vector *acls)
 static value
 zkocaml_build_client_id_struct(const clientid_t *cid)
 {
-  CAMLparam0();
+  /* CAMLparam0(); */
   CAMLlocal1(v);
 
   v = caml_alloc(2, 0);
   Store_field(v, 0, caml_copy_int64(cid->client_id));
   Store_field(v, 1, caml_copy_string(cid->passwd));
 
-  CAMLreturn(v);
+  return v;
 }
 
 
 static value
 zkocaml_build_stat_struct(const struct Stat *stat)
 {
-  CAMLparam0();
+  /* CAMLparam0(); */
   CAMLlocal1(v);
 
   v = caml_alloc(11, 0);
@@ -509,13 +460,13 @@ zkocaml_build_stat_struct(const struct Stat *stat)
   Store_field(v,  9, Val_int(stat->numChildren));
   Store_field(v, 10, Val_int(stat->pzxid));
 
-  CAMLreturn(v);
+  return v;
 }
 
 static value
 zkocaml_build_strings_struct(const struct String_vector *strings)
 {
-  CAMLparam0();
+  /* CAMLparam0(); */
   CAMLlocal1(v);
 
   int i = 0;
@@ -524,13 +475,13 @@ zkocaml_build_strings_struct(const struct String_vector *strings)
     Store_field(v, i, caml_copy_string(strings->data[i]));
   }
 
-  CAMLreturn(v);
+  return v;
 }
 
 static value
 zkocaml_build_acls_struct(const struct ACL_vector *acls)
 {
-  CAMLparam0();
+  /* CAMLparam0(); */
   CAMLlocal2(v, acl);
 
   int i = 0;
@@ -544,7 +495,59 @@ zkocaml_build_acls_struct(const struct ACL_vector *acls)
     Store_field(v, i, acl);
   }
 
-  CAMLreturn(v);
+  return v;
+}
+
+static int
+is_connected(zhandle_t* zh)
+{
+  int state = zoo_state(zh);
+  return (state==ZOO_CONNECTED_STATE);
+}
+
+#define RETURN_IF_NO_HANDLE(h_,v)               \
+    if (!h_ || !is_connected(h_))               \
+        CAMLreturn(v)                           \
+
+
+static zhandle_t*
+zkocaml_handle_struct_val (value zh)
+{
+  zhandle_t* handle = (zhandle_t*) Int64_val(Field(zh,0));
+  atomic_int* refcount = (atomic_int*) Int64_val(Field(zh,1));
+  if (!handle || !is_connected(handle) || !refcount || atomic_load(refcount) <= 0)
+      return 0;
+  return (zhandle_t*) handle;
+}
+
+static value
+zkocaml_copy_zh(value zh)
+{
+  /* CAMLparam0(); */
+  atomic_int* refcount = (atomic_int*) Int64_val(Field(zh,1));
+  atomic_fetch_add(refcount,1);
+
+  return zh;
+}
+
+static value
+zkocaml_destroy_handle (value zh)
+{
+  /* CAMLparam0(); */
+  CAMLlocal1(result);
+  result = zkocaml_enum_error_c2ml(ZOK);
+  atomic_int* refcount = (atomic_int*) Int64_val(Field(zh,1));
+  zhandle_t* handle = (zhandle_t*) Int64_val(Field(zh,0));
+
+  if (!handle || !is_connected(handle)) return result;
+  int tmp = atomic_fetch_sub(refcount,1) - 1;
+  if (tmp == 0) {
+    result = Val_int(zookeeper_close(handle));
+    if (zkocaml_log_stream != NULL) fclose(zkocaml_log_stream);
+    free(refcount);
+  }
+
+  return result;
 }
 
 #define DISPOSABLE 0
@@ -566,20 +569,23 @@ make_completion_context(value data,
 zkocaml_watcher_context_t*
 make_watcher_context(value watcher_ctx,
                      value callback,
-                     int kind)
+                     int kind,
+                     value zh)
 {
   zkocaml_watcher_context_t *local_ctx = (zkocaml_watcher_context_t *)
       malloc(sizeof(zkocaml_watcher_context_t));
   local_ctx->watcher_ctx = String_val(watcher_ctx);
   local_ctx->watcher_callback = callback;
   local_ctx->permanent = kind;
+  local_ctx->zh = zh;
   caml_register_generational_global_root(&(local_ctx->watcher_callback));
+  caml_register_generational_global_root(&(local_ctx->zh));
 
   return local_ctx;
 }
 
 static void
-watcher_dispatch(zhandle_t *zh,
+watcher_dispatch(zhandle_t *_zhandle, // ignore this, because we have our handle in ctx
                  int type,
                  int state,
                  const char *path,
@@ -592,7 +598,9 @@ watcher_dispatch(zhandle_t *zh,
   CAMLlocalN(args, 5);
 
   zkocaml_watcher_context_t *ctx = (zkocaml_watcher_context_t* )(watcher_ctx);
-  local_zh = zkocaml_copy_zhandle(zh);
+  if (!zkocaml_handle_struct_val(ctx->zh)) goto skip;
+
+  local_zh = zkocaml_copy_zh(ctx->zh);
   local_type = zkocaml_enum_event_c2ml(type);
   local_state = zkocaml_enum_state_c2ml(state);
   local_path = caml_copy_string(path);
@@ -603,11 +611,14 @@ watcher_dispatch(zhandle_t *zh,
   Store_field(args, 2, local_state);
   Store_field(args, 3, local_path);
   Store_field(args, 4, local_watcher_ctx);
-
   callbackN(ctx->watcher_callback, 5, args);
+  zkocaml_destroy_handle(ctx->zh);
 
-  if (!ctx->permanent) caml_remove_generational_global_root(&(ctx->watcher_callback));
-
+skip:
+  if (!ctx->permanent) {
+    caml_remove_generational_global_root(&(ctx->watcher_callback));
+    caml_remove_generational_global_root(&(ctx->zh));
+  }
   CAMLdrop;
   zkocaml_leave_callback();
 }
@@ -894,16 +905,21 @@ zkocaml_init_native(value host,
   CAMLxparam1(flag);
   CAMLlocal1(zh);
 
+  zh = caml_alloc(2,0);
   const char *local_host = String_val(host);
   int local_recv_timeout = Long_val(recv_timeout);
   clientid_t *cid = NULL;
 
-  zkocaml_watcher_context_t *ctx = make_watcher_context(context, watcher_callback, PERMANENT);;
+  zkocaml_watcher_context_t *ctx = make_watcher_context(context, watcher_callback, PERMANENT, zh);;
 
   cid = zkocaml_parse_clientid(clientid);
   zhandle_t *handle = zookeeper_init(local_host, watcher_dispatch, local_recv_timeout, cid, ctx, 0);
+  atomic_int* refcount = (atomic_int*) malloc(sizeof(atomic_int));
 
-  zh = zkocaml_copy_zhandle(handle);
+  atomic_init(refcount,1);
+  Store_field(zh, 0, caml_copy_int64((size_t)handle));
+  Store_field(zh, 1, caml_copy_int64((size_t)refcount));
+
   CAMLreturn(zh);
 }
 
@@ -942,17 +958,7 @@ zkocaml_close(value zh)
 {
   CAMLparam1(zh);
   CAMLlocal1(result);
-
-  zkocaml_handle_t *zhandle = NULL;
-  zhandle = zkocaml_handle_struct_val(zh);
-
-  zkocaml_watcher_context_t *ctx = (zkocaml_watcher_context_t*) zoo_get_context(zhandle->handle);
-  caml_remove_generational_global_root(&(ctx->watcher_callback));
-
-  int rc = zookeeper_close(zhandle->handle);
-  if (zkocaml_log_stream != NULL) fclose(zkocaml_log_stream);
-  result = Val_int(rc);
-
+  result = zkocaml_destroy_handle(zh);
   CAMLreturn(result);
 }
 
@@ -966,9 +972,9 @@ zkocaml_client_id(value zh)
   CAMLparam1(zh);
   CAMLlocal1(result);
 
-  zkocaml_handle_t *zhandle = NULL;
-  zhandle = zkocaml_handle_struct_val(zh);
-  const clientid_t *cid = zoo_client_id(zhandle->handle);
+  zhandle_t *handle = zkocaml_handle_struct_val(zh);
+
+  const clientid_t *cid = zoo_client_id(handle);
   result = zkocaml_build_client_id_struct(cid);
 
   CAMLreturn(result);
@@ -985,9 +991,9 @@ zkocaml_recv_timeout(value zh)
   CAMLparam1(zh);
   CAMLlocal1(result);
 
-  zkocaml_handle_t *zhandle = NULL;
-  zhandle = zkocaml_handle_struct_val(zh);
-  int recv_timeout = zoo_recv_timeout(zhandle->handle);
+  zhandle_t *handle = zkocaml_handle_struct_val(zh);
+
+  int recv_timeout = zoo_recv_timeout(handle);
   result = Val_int(recv_timeout);
 
   CAMLreturn(result);
@@ -1002,9 +1008,9 @@ zkocaml_get_context(value zh)
   CAMLparam1(zh);
   CAMLlocal1(result);
 
-  zkocaml_handle_t *zhandle = NULL;
-  zhandle = zkocaml_handle_struct_val(zh);
-  zkocaml_watcher_context_t *ctx = (zkocaml_watcher_context_t*) zoo_get_context(zhandle->handle);
+  zhandle_t *handle = zkocaml_handle_struct_val(zh);
+
+  zkocaml_watcher_context_t *ctx = (zkocaml_watcher_context_t*) zoo_get_context(handle);
   result = caml_copy_string((char*)ctx->watcher_ctx);
 
   CAMLreturn(result);
@@ -1018,10 +1024,11 @@ zkocaml_set_context(value zh, value context)
 {
   CAMLparam2(zh, context);
 
-  zkocaml_handle_t *zhandle = NULL;
-  zhandle = zkocaml_handle_struct_val(zh);
+  zhandle_t *handle = zkocaml_handle_struct_val(zh);
+  RETURN_IF_NO_HANDLE (handle,Val_unit);
+
   char *local_context = String_val(context);
-  zoo_set_context(zhandle->handle, local_context);
+  zoo_set_context(handle, local_context);
 
   CAMLreturn(Val_unit);
 }
@@ -1065,8 +1072,9 @@ zkocaml_state(value zh)
   CAMLparam1(zh);
   CAMLlocal1(state);
 
-  zkocaml_handle_t *zhandle = zkocaml_handle_struct_val(zh);
-  state = zoo_state(zhandle->handle);
+  zhandle_t *handle = zkocaml_handle_struct_val(zh);
+
+  state = zoo_state(handle);
 
   CAMLreturn(state);
 }
@@ -1124,7 +1132,10 @@ zkocaml_acreate_native(value zh,
   CAMLlocal1(result);
 
   struct ACL_vector local_acl;
-  zkocaml_handle_t *zhandle = zkocaml_handle_struct_val(zh);
+
+  zhandle_t *handle = zkocaml_handle_struct_val(zh);
+  RETURN_IF_NO_HANDLE (handle, zkocaml_enum_error_c2ml(ZINVALIDSTATE));
+
   int r = zkocaml_parse_acls(acl, &local_acl);
   if (r == 0) {
     local_acl = ZOO_OPEN_ACL_UNSAFE;
@@ -1132,7 +1143,7 @@ zkocaml_acreate_native(value zh,
   int local_flags = zkocaml_enum_create_flag_ml2c(flags);
   zkocaml_completion_context_t *local_data = make_completion_context(data,completion);
 
-  int rc = zoo_acreate(zhandle->handle,
+  int rc = zoo_acreate(handle,
                        String_val(path),
                        String_val(val),
                        caml_string_length(val),
@@ -1190,12 +1201,14 @@ zkocaml_adelete(value zh,
   CAMLparam5(zh, path, version, completion, data);
   CAMLlocal1(result);
 
-  zkocaml_handle_t *zhandle = zkocaml_handle_struct_val(zh);
+  zhandle_t *handle = zkocaml_handle_struct_val(zh);
+  RETURN_IF_NO_HANDLE (handle,zkocaml_enum_error_c2ml(ZINVALIDSTATE));
+
   const char *local_path = String_val(path);
   int local_version = Int_val(version);
   zkocaml_completion_context_t *local_data = make_completion_context(data,completion);
 
-  int rc = zoo_adelete(zhandle->handle,
+  int rc = zoo_adelete(handle,
                        local_path,
                        local_version,
                        void_completion_dispatch,
@@ -1241,12 +1254,14 @@ zkocaml_aexists(value zh,
   CAMLparam5(zh, path, watch, completion, data);
   CAMLlocal1(result);
 
-  zkocaml_handle_t *zhandle = zkocaml_handle_struct_val(zh);
+  zhandle_t *handle = zkocaml_handle_struct_val(zh);
+  RETURN_IF_NO_HANDLE (handle,zkocaml_enum_error_c2ml(ZINVALIDSTATE));
+
   const char *local_path = String_val(path);
   int local_watch = Int_val(watch);
   zkocaml_completion_context_t *local_data = make_completion_context(data,completion);
 
-  int rc = zoo_aexists(zhandle->handle,
+  int rc = zoo_aexists(handle,
                        local_path,
                        local_watch,
                        stat_completion_dispatch,
@@ -1303,12 +1318,14 @@ zkocaml_awexists_native(value zh,
   CAMLxparam1(data);
   CAMLlocal1(result);
 
-  zkocaml_handle_t *zhandle = zkocaml_handle_struct_val(zh);
+  zhandle_t *handle = zkocaml_handle_struct_val(zh);
+  RETURN_IF_NO_HANDLE (handle, zkocaml_enum_error_c2ml(ZINVALIDSTATE));
+
   const char *local_path = String_val(path);
-  zkocaml_watcher_context_t *local_ctx = make_watcher_context(watcher_ctx, watcher_callback, DISPOSABLE);
+  zkocaml_watcher_context_t *local_ctx = make_watcher_context(watcher_ctx, watcher_callback, DISPOSABLE, zh);
   zkocaml_completion_context_t *local_data = make_completion_context(data,completion);
 
-  int rc = zoo_awexists(zhandle->handle,
+  int rc = zoo_awexists(handle,
                         local_path,
                         watcher_dispatch,
                         local_ctx,
@@ -1361,12 +1378,14 @@ zkocaml_aget(value zh,
   CAMLparam5(zh, path, watch, completion, data);
   CAMLlocal1(result);
 
-  zkocaml_handle_t *zhandle = zkocaml_handle_struct_val(zh);
+  zhandle_t *handle = zkocaml_handle_struct_val(zh);
+  RETURN_IF_NO_HANDLE (handle, zkocaml_enum_error_c2ml(ZINVALIDSTATE));
+
   const char *local_path = String_val(path);
   int local_watch = Int_val(watch);
   zkocaml_completion_context_t *local_data = make_completion_context(data,completion);
 
-  int rc = zoo_aget(zhandle->handle,
+  int rc = zoo_aget(handle,
                     local_path,
                     local_watch,
                     data_completion_dispatch,
@@ -1420,12 +1439,14 @@ zkocaml_awget_native(value zh,
   CAMLxparam1(data);
   CAMLlocal1(result);
 
-  zkocaml_handle_t *zhandle = zkocaml_handle_struct_val(zh);
+  zhandle_t *handle = zkocaml_handle_struct_val(zh);
+  RETURN_IF_NO_HANDLE (handle, zkocaml_enum_error_c2ml(ZINVALIDSTATE));
+
   const char *local_path = String_val(path);
-  zkocaml_watcher_context_t *local_ctx = make_watcher_context(watcher_ctx, watcher_callback, DISPOSABLE);
+  zkocaml_watcher_context_t *local_ctx = make_watcher_context(watcher_ctx, watcher_callback, DISPOSABLE, zh);
   zkocaml_completion_context_t *local_data = make_completion_context(data,completion);
 
-  int rc = zoo_awget(zhandle->handle,
+  int rc = zoo_awget(handle,
                      local_path,
                      watcher_dispatch,
                      local_ctx,
@@ -1486,10 +1507,12 @@ zkocaml_aset_native(value zh,
   CAMLxparam1(data);
   CAMLlocal1(result);
 
-  zkocaml_handle_t *zhandle = zkocaml_handle_struct_val(zh);
+  zhandle_t *handle = zkocaml_handle_struct_val(zh);
+  RETURN_IF_NO_HANDLE (handle, zkocaml_enum_error_c2ml(ZINVALIDSTATE));
+
   zkocaml_completion_context_t *local_data = make_completion_context(data,completion);
 
-  int rc = zoo_aset(zhandle->handle,
+  int rc = zoo_aset(handle,
                     String_val(path),
                     String_val(buffer),
                     caml_string_length(buffer),
@@ -1543,12 +1566,14 @@ zkocaml_aget_children(value zh,
   CAMLparam5(zh, path, watch, completion, data);
   CAMLlocal1(result);
 
-  zkocaml_handle_t *zhandle = zkocaml_handle_struct_val(zh);
+  zhandle_t *handle = zkocaml_handle_struct_val(zh);
+  RETURN_IF_NO_HANDLE (handle, zkocaml_enum_error_c2ml(ZINVALIDSTATE));
+
   const char *local_path = String_val(path);
   int local_watch = Int_val(watch);
   zkocaml_completion_context_t *local_data = make_completion_context(data,completion);
 
-  int rc = zoo_aget_children(zhandle->handle,
+  int rc = zoo_aget_children(handle,
                              local_path,
                              local_watch,
                              strings_completion_dispatch,
@@ -1602,12 +1627,14 @@ zkocaml_awget_children_native(value zh,
   CAMLxparam1(data);
   CAMLlocal1(result);
 
-  zkocaml_handle_t *zhandle = zkocaml_handle_struct_val(zh);
+  zhandle_t *handle = zkocaml_handle_struct_val(zh);
+  RETURN_IF_NO_HANDLE (handle, zkocaml_enum_error_c2ml(ZINVALIDSTATE));
+
   const char *local_path = String_val(path);
-  zkocaml_watcher_context_t *local_ctx = make_watcher_context(watcher_ctx, watcher_callback, DISPOSABLE);
+  zkocaml_watcher_context_t *local_ctx = make_watcher_context(watcher_ctx, watcher_callback, DISPOSABLE, zh);
   zkocaml_completion_context_t *local_data = make_completion_context(data,completion);
 
-  int rc = zoo_awget_children(zhandle->handle,
+  int rc = zoo_awget_children(handle,
                               local_path,
                               watcher_dispatch,
                               local_ctx,
@@ -1662,12 +1689,14 @@ zkocaml_aget_children2(value zh,
   CAMLparam5(zh, path, watch, completion, data);
   CAMLlocal1(result);
 
-  zkocaml_handle_t *zhandle = zkocaml_handle_struct_val(zh);
+  zhandle_t *handle = zkocaml_handle_struct_val(zh);
+  RETURN_IF_NO_HANDLE (handle, zkocaml_enum_error_c2ml(ZINVALIDSTATE));
+
   const char *local_path = String_val(path);
   int local_watch = Int_val(watch);
   zkocaml_completion_context_t *local_data = make_completion_context(data,completion);
 
-  int rc = zoo_aget_children2(zhandle->handle,
+  int rc = zoo_aget_children2(handle,
                               local_path,
                               local_watch,
                               strings_stat_completion_dispatch,
@@ -1723,12 +1752,14 @@ zkocaml_awget_children2_native(value zh,
   CAMLxparam1(data);
   CAMLlocal1(result);
 
-  zkocaml_handle_t *zhandle = zkocaml_handle_struct_val(zh);
+  zhandle_t *handle = zkocaml_handle_struct_val(zh);
+  RETURN_IF_NO_HANDLE (handle, zkocaml_enum_error_c2ml(ZINVALIDSTATE));
+
   const char *local_path = String_val(path);
-  zkocaml_watcher_context_t *local_ctx = make_watcher_context(watcher_ctx, watcher_callback, DISPOSABLE);
+  zkocaml_watcher_context_t *local_ctx = make_watcher_context(watcher_ctx, watcher_callback, DISPOSABLE, zh);
   zkocaml_completion_context_t *local_data = make_completion_context(data,completion);
 
-  int rc = zoo_awget_children2(zhandle->handle,
+  int rc = zoo_awget_children2(handle,
                                local_path,
                                watcher_dispatch,
                                local_ctx,
@@ -1774,11 +1805,13 @@ zkocaml_async(value zh, value path, value completion, value data)
   CAMLparam4(zh, path, completion, data);
   CAMLlocal1(result);
 
-  zkocaml_handle_t *zhandle = zkocaml_handle_struct_val(zh);
+  zhandle_t *handle = zkocaml_handle_struct_val(zh);
+  RETURN_IF_NO_HANDLE (handle, zkocaml_enum_error_c2ml(ZINVALIDSTATE));
+
   const char *local_path = String_val(path);
   zkocaml_completion_context_t *local_data = make_completion_context(data,completion);
 
-  int rc = zoo_async(zhandle->handle,
+  int rc = zoo_async(handle,
                      local_path,
                      string_completion_dispatch,
                      local_data);
@@ -1815,11 +1848,13 @@ zkocaml_aget_acl(value zh, value path, value completion, value data)
   CAMLparam4(zh, path, completion, data);
   CAMLlocal1(result);
 
-  zkocaml_handle_t *zhandle = zkocaml_handle_struct_val(zh);
+  zhandle_t *handle = zkocaml_handle_struct_val(zh);
+  RETURN_IF_NO_HANDLE (handle, zkocaml_enum_error_c2ml(ZINVALIDSTATE));
+
   const char *local_path = String_val(path);
   zkocaml_completion_context_t *local_data = make_completion_context(data,completion);
 
-  int rc = zoo_aget_acl(zhandle->handle,
+  int rc = zoo_aget_acl(handle,
                         local_path,
                         acl_completion_dispatch,
                         local_data);
@@ -1856,18 +1891,21 @@ zkocaml_aget_acl(value zh, value path, value completion, value data)
  */
 CAMLprim value
 zkocaml_aset_acl_native(value zh,
-                 value path,
-                 value version,
-                 value acl,
-                 value completion,
-                 value data)
+                        value path,
+                        value version,
+                        value acl,
+                        value completion,
+                        value data)
 {
   CAMLparam5(zh, path, version, acl, completion);
   CAMLxparam1(data);
   CAMLlocal1(result);
 
   struct ACL_vector local_acl;
-  zkocaml_handle_t *zhandle = zkocaml_handle_struct_val(zh);
+
+  zhandle_t *handle = zkocaml_handle_struct_val(zh);
+  RETURN_IF_NO_HANDLE (handle, zkocaml_enum_error_c2ml(ZINVALIDSTATE));
+
   const char *local_path = String_val(path);
   int local_version = Int_val(version);
   int r = zkocaml_parse_acls(acl, &local_acl);
@@ -1876,7 +1914,7 @@ zkocaml_aset_acl_native(value zh,
   }
   zkocaml_completion_context_t *local_data = make_completion_context(data,completion);
 
-  int rc = zoo_aset_acl(zhandle->handle,
+  int rc = zoo_aset_acl(handle,
                         local_path,
                         local_version,
                         (struct ACL_vector *)&local_acl,
@@ -1954,10 +1992,12 @@ zkocaml_add_auth(value zh,
   CAMLparam5(zh, scheme, cert, completion, data);
   CAMLlocal1(result);
 
-  zkocaml_handle_t *zhandle = zkocaml_handle_struct_val(zh);
+  zhandle_t *handle = zkocaml_handle_struct_val(zh);
+  RETURN_IF_NO_HANDLE (handle, zkocaml_enum_error_c2ml(ZINVALIDSTATE));
+
   zkocaml_completion_context_t *local_data = make_completion_context(data,completion);
 
-  int rc = zoo_add_auth(zhandle->handle,
+  int rc = zoo_add_auth(handle,
                         String_val(scheme),
                         String_val(cert),
                         caml_string_length(cert),
@@ -1982,8 +2022,8 @@ zkocaml_is_unrecoverable(value zh)
   CAMLparam1(zh);
   CAMLlocal1(result);
 
-  zkocaml_handle_t *zhandle = zkocaml_handle_struct_val(zh);
-  int rc = is_unrecoverable(zhandle->handle);
+  zhandle_t *handle = zkocaml_handle_struct_val(zh);
+  int rc = is_unrecoverable(handle);
   result = zkocaml_enum_event_c2ml(rc);
 
   CAMLreturn(result);
@@ -2109,9 +2149,14 @@ zkocaml_create(value zh,
 {
   CAMLparam5(zh, path, val, acl, flags);
   CAMLlocal3(result, error, buffer);
-
   struct ACL_vector local_acl;
-  zkocaml_handle_t *zhandle = zkocaml_handle_struct_val(zh);
+
+  result = caml_alloc(2, 0);
+  Store_field(result, 0, zkocaml_enum_error_c2ml(ZINVALIDSTATE));
+  Store_field(result, 1, path);
+  zhandle_t *handle = zkocaml_handle_struct_val(zh);
+  RETURN_IF_NO_HANDLE (handle,result);
+
   char *path_buffer = (char *)calloc(ZKOCAML_MAX_PATH_BUFFER_SIZE, sizeof(char));
   int r = zkocaml_parse_acls(acl, &local_acl);
   if (r == 0) {
@@ -2119,7 +2164,7 @@ zkocaml_create(value zh,
   }
   int local_flags = zkocaml_enum_create_flag_ml2c(flags);
 
-  int rc = zoo_create(zhandle->handle,
+  int rc = zoo_create(handle,
                       String_val(path),
                       String_val(val),
                       caml_string_length(val),
@@ -2131,7 +2176,6 @@ zkocaml_create(value zh,
 
   error = zkocaml_enum_error_c2ml(rc);
   buffer = caml_copy_string(path_buffer);
-  result = caml_alloc(2, 0);
   Store_field(result, 0, error);
   Store_field(result, 1, buffer);
   free(path_buffer);
@@ -2167,11 +2211,13 @@ zkocaml_delete(value zh, value path, value version)
   CAMLparam3(zh, path, version);
   CAMLlocal1(result);
 
-  zkocaml_handle_t *zhandle = zkocaml_handle_struct_val(zh);
+  zhandle_t *handle = zkocaml_handle_struct_val(zh);
+  RETURN_IF_NO_HANDLE (handle, zkocaml_enum_error_c2ml(ZINVALIDSTATE));
+
   const char *local_path = String_val(path);
   int local_version = Int_val(version);
 
-  int rc = zoo_delete(zhandle->handle, local_path, local_version);
+  int rc = zoo_delete(handle, local_path, local_version);
   result = zkocaml_enum_error_c2ml(rc);
 
   CAMLreturn(result);
@@ -2204,20 +2250,24 @@ zkocaml_exists(value zh, value path, value watch)
 {
   CAMLparam3(zh, path, watch);
   CAMLlocal3(result, error, stat);
-
   struct Stat local_stat;
-  zkocaml_handle_t *zhandle = zkocaml_handle_struct_val(zh);
+
+  result = caml_alloc(2, 0);
+  Store_field(result, 0, zkocaml_enum_error_c2ml(ZINVALIDSTATE));
+  Store_field(result, 1, zkocaml_build_stat_struct(&local_stat));
+  zhandle_t *handle = zkocaml_handle_struct_val(zh);
+  RETURN_IF_NO_HANDLE (handle, result);
+
   const char *local_path = String_val(path);
   int local_watch = Int_val(watch);
 
-  int rc = zoo_exists(zhandle->handle,
+  int rc = zoo_exists(handle,
                       local_path,
                       local_watch,
                       (struct Stat *)&local_stat);
 
   error = zkocaml_enum_error_c2ml(rc);
   stat = zkocaml_build_stat_struct(&local_stat);
-  result = caml_alloc(2, 0);
   Store_field(result, 0, error);
   Store_field(result, 1, stat);
 
@@ -2261,13 +2311,18 @@ zkocaml_wexists(value zh,
 {
   CAMLparam4(zh, path, watcher_callback, watcher_ctx);
   CAMLlocal3(result, error, stat);
-
   struct Stat local_stat;
-  zkocaml_handle_t *zhandle = zkocaml_handle_struct_val(zh);
-  const char *local_path = String_val(path);
-  zkocaml_watcher_context_t *local_ctx = make_watcher_context(watcher_ctx, watcher_callback, DISPOSABLE);
 
-  int rc = zoo_wexists(zhandle->handle,
+  result = caml_alloc(2, 0);
+  Store_field(result, 0, zkocaml_enum_error_c2ml(ZINVALIDSTATE));
+  Store_field(result, 1, zkocaml_build_stat_struct(&local_stat));
+  zhandle_t *handle = zkocaml_handle_struct_val(zh);
+  RETURN_IF_NO_HANDLE (handle, result);
+
+  const char *local_path = String_val(path);
+  zkocaml_watcher_context_t *local_ctx = make_watcher_context(watcher_ctx, watcher_callback, DISPOSABLE, zh);
+
+  int rc = zoo_wexists(handle,
                        local_path,
                        watcher_dispatch,
                        local_ctx,
@@ -2275,7 +2330,6 @@ zkocaml_wexists(value zh,
 
   error = zkocaml_enum_error_c2ml(rc);
   stat = zkocaml_build_stat_struct(&local_stat);
-  result = caml_alloc(2, 0);
   Store_field(result, 0, error);
   Store_field(result, 1, stat);
 
@@ -2313,16 +2367,22 @@ zkocaml_get(value zh,
 {
   CAMLparam3(zh, path, watch);
   CAMLlocal4(result, error, buffer, stat);
+  struct Stat local_stat;
+
+  result = caml_alloc(3, 0);
+  Store_field(result, 0, zkocaml_enum_error_c2ml(ZINVALIDSTATE));
+  Store_field(result, 1, path);
+  Store_field(result, 2, zkocaml_build_stat_struct(&local_stat));
+  zhandle_t *handle = zkocaml_handle_struct_val(zh);
+  RETURN_IF_NO_HANDLE (handle, result);
 
   int path_buffer_size = ZKOCAML_MAX_PATH_BUFFER_SIZE;
-  struct Stat local_stat;
-  zkocaml_handle_t *zhandle = zkocaml_handle_struct_val(zh);
   char *path_buffer = (char *)malloc(
                       sizeof(char) * path_buffer_size);
   memset(path_buffer, 0, path_buffer_size);
   const char *local_path = String_val(path);
   int local_watch = Int_val(watch);
-  int rc = zoo_get(zhandle->handle,
+  int rc = zoo_get(handle,
                    local_path,
                    local_watch,
                    path_buffer,
@@ -2331,7 +2391,6 @@ zkocaml_get(value zh,
   error = zkocaml_enum_error_c2ml(rc);
   buffer = caml_copy_string(path_buffer);
   stat = zkocaml_build_stat_struct(&local_stat);
-  result = caml_alloc(3, 0);
   Store_field(result, 0, error);
   Store_field(result, 1, buffer);
   Store_field(result, 2, stat);
@@ -2378,17 +2437,23 @@ zkocaml_wget(value zh,
 {
   CAMLparam4(zh, path, watcher_callback, watcher_ctx);
   CAMLlocal4(result, error, buffer, stat);
+  struct Stat local_stat;
+
+  result = caml_alloc(3, 0);
+  Store_field(result, 0, zkocaml_enum_error_c2ml(ZINVALIDSTATE));
+  Store_field(result, 1, path);
+  Store_field(result, 2, zkocaml_build_stat_struct(&local_stat));
+  zhandle_t *handle = zkocaml_handle_struct_val(zh);
+  RETURN_IF_NO_HANDLE (handle, result);
 
   int path_buffer_size = ZKOCAML_MAX_PATH_BUFFER_SIZE;
-  struct Stat local_stat;
-  zkocaml_handle_t *zhandle = zkocaml_handle_struct_val(zh);
   char *path_buffer = (char *)malloc(
                       sizeof(char) * path_buffer_size);
   memset(path_buffer, 0, path_buffer_size);
   const char *local_path = String_val(path);
-  zkocaml_watcher_context_t *local_ctx = make_watcher_context(watcher_ctx, watcher_callback, DISPOSABLE);
+  zkocaml_watcher_context_t *local_ctx = make_watcher_context(watcher_ctx, watcher_callback, DISPOSABLE, zh);
 
-  int rc = zoo_wget(zhandle->handle,
+  int rc = zoo_wget(handle,
                     local_path,
                     watcher_dispatch,
                     local_ctx,
@@ -2399,7 +2464,6 @@ zkocaml_wget(value zh,
   error = zkocaml_enum_error_c2ml(rc);
   buffer = caml_copy_string(path_buffer);
   stat = zkocaml_build_stat_struct(&local_stat);
-  result = caml_alloc(3, 0);
   Store_field(result, 0, error);
   Store_field(result, 1, buffer);
   Store_field(result, 2, stat);
@@ -2438,9 +2502,10 @@ zkocaml_set(value zh, value path, value buffer, value version)
   CAMLparam4(zh, path, buffer, version);
   CAMLlocal1(result);
 
-  zkocaml_handle_t *zhandle = zkocaml_handle_struct_val(zh);
+  zhandle_t *handle = zkocaml_handle_struct_val(zh);
+  RETURN_IF_NO_HANDLE (handle, zkocaml_enum_error_c2ml(ZINVALIDSTATE));
 
-  int rc = zoo_set(zhandle->handle,
+  int rc = zoo_set(handle,
                    String_val(path),
                    String_val(buffer),
                    caml_string_length(buffer),
@@ -2482,11 +2547,15 @@ zkocaml_set2(value zh, value path, value buffer, value version)
 {
   CAMLparam4(zh, path, buffer, version);
   CAMLlocal3(result, error, stat);
-
   struct Stat local_stat;
-  zkocaml_handle_t *zhandle = zkocaml_handle_struct_val(zh);
 
-  int rc = zoo_set2(zhandle->handle,
+  result = caml_alloc(2, 0);
+  Store_field(result, 0, zkocaml_enum_error_c2ml(ZINVALIDSTATE));
+  Store_field(result, 1, zkocaml_build_stat_struct(&local_stat));
+  zhandle_t *handle = zkocaml_handle_struct_val(zh);
+  RETURN_IF_NO_HANDLE (handle, result);
+
+  int rc = zoo_set2(handle,
                     String_val(path),
                     String_val(buffer),
                     caml_string_length(buffer),
@@ -2495,7 +2564,6 @@ zkocaml_set2(value zh, value path, value buffer, value version)
 
   error = zkocaml_enum_error_c2ml(rc);
   stat = zkocaml_build_stat_struct(&local_stat);
-  result = caml_alloc(2, 0);
   Store_field(result, 0, error);
   Store_field(result, 1, stat);
 
@@ -2528,20 +2596,24 @@ zkocaml_get_children(value zh, value path, value watch)
 {
   CAMLparam3(zh, path, watch);
   CAMLlocal3(result, error, strs);
-
   struct String_vector local_strings;
-  zkocaml_handle_t *zhandle = zkocaml_handle_struct_val(zh);
+
+  result = caml_alloc(2, 0);
+  Store_field(result, 0, zkocaml_enum_error_c2ml(ZINVALIDSTATE));
+  Store_field(result, 1, zkocaml_build_strings_struct(&local_strings));
+  zhandle_t *handle = zkocaml_handle_struct_val(zh);
+  RETURN_IF_NO_HANDLE (handle, result);
+
   const char *local_path = String_val(path);
   int local_watch = Int_val(watch);
 
-  int rc = zoo_get_children(zhandle->handle,
+  int rc = zoo_get_children(handle,
                             local_path,
                             local_watch,
                             (struct String_vector *)&local_strings);
 
   error = zkocaml_enum_error_c2ml(rc);
   strs = zkocaml_build_strings_struct(&local_strings);
-  result = caml_alloc(2, 0);
   Store_field(result, 0, error);
   Store_field(result, 1, strs);
 
@@ -2584,13 +2656,18 @@ zkocaml_wget_children(value zh,
 {
   CAMLparam4(zh, path, watcher_callback, watcher_ctx);
   CAMLlocal3(result, error, strs);
-
   struct String_vector local_strings;
-  zkocaml_handle_t *zhandle = zkocaml_handle_struct_val(zh);
-  const char *local_path = String_val(path);
-  zkocaml_watcher_context_t *local_ctx = make_watcher_context(watcher_ctx, watcher_callback, DISPOSABLE);
 
-  int rc = zoo_wget_children(zhandle->handle,
+  result = caml_alloc(2, 0);
+  Store_field(result, 0, zkocaml_enum_error_c2ml(ZINVALIDSTATE));
+  Store_field(result, 1, zkocaml_build_strings_struct(&local_strings));
+  zhandle_t *handle = zkocaml_handle_struct_val(zh);
+  RETURN_IF_NO_HANDLE (handle, result);
+
+  const char *local_path = String_val(path);
+  zkocaml_watcher_context_t *local_ctx = make_watcher_context(watcher_ctx, watcher_callback, DISPOSABLE, zh);
+
+  int rc = zoo_wget_children(handle,
                              local_path,
                              watcher_dispatch,
                              local_ctx,
@@ -2598,7 +2675,6 @@ zkocaml_wget_children(value zh,
 
   error = zkocaml_enum_error_c2ml(rc);
   strs = zkocaml_build_strings_struct(&local_strings);
-  result = caml_alloc(2, 0);
   Store_field(result, 0, error);
   Store_field(result, 1, strs);
 
@@ -2637,14 +2713,20 @@ zkocaml_get_children2(value zh,
 {
   CAMLparam3(zh, path, watch);
   CAMLlocal4(result, error, strs, stat);
-
   struct String_vector local_strings;
   struct Stat local_stat;
-  zkocaml_handle_t *zhandle = zkocaml_handle_struct_val(zh);
+
+  result = caml_alloc(3, 0);
+  Store_field(result, 0, zkocaml_enum_error_c2ml(ZINVALIDSTATE));
+  Store_field(result, 1, zkocaml_build_strings_struct(&local_strings));
+  Store_field(result, 2, zkocaml_build_stat_struct(&local_stat));
+  zhandle_t *handle = zkocaml_handle_struct_val(zh);
+  RETURN_IF_NO_HANDLE (handle, result);
+
   const char *local_path = String_val(path);
   int local_watch = Int_val(watch);
 
-  int rc = zoo_get_children2(zhandle->handle,
+  int rc = zoo_get_children2(handle,
                              local_path,
                              local_watch,
                              (struct String_vector *)&local_strings,
@@ -2653,7 +2735,6 @@ zkocaml_get_children2(value zh,
   error = zkocaml_enum_error_c2ml(rc);
   strs = zkocaml_build_strings_struct(&local_strings);
   stat = zkocaml_build_stat_struct(&local_stat);
-  result = caml_alloc(3, 0);
   Store_field(result, 0, error);
   Store_field(result, 1, strs);
   Store_field(result, 2, stat);
@@ -2702,15 +2783,21 @@ zkocaml_wget_children2(value zh,
 {
   CAMLparam4(zh, path, watcher_callback, watcher_ctx);
   CAMLlocal4(result, error, strs, stat);
-
   struct String_vector local_strings;
   struct Stat local_stat;
-  zkocaml_handle_t *zhandle = zkocaml_handle_struct_val(zh);
-  zkocaml_watcher_context_t *local_ctx = make_watcher_context(watcher_ctx, watcher_callback, DISPOSABLE);
+
+  result = caml_alloc(3, 0);
+  Store_field(result, 0, zkocaml_enum_error_c2ml(ZINVALIDSTATE));
+  Store_field(result, 1, zkocaml_build_strings_struct(&local_strings));
+  Store_field(result, 2, zkocaml_build_stat_struct(&local_stat));
+  zhandle_t *handle = zkocaml_handle_struct_val(zh);
+  RETURN_IF_NO_HANDLE (handle, result);
+
+  zkocaml_watcher_context_t *local_ctx = make_watcher_context(watcher_ctx, watcher_callback, DISPOSABLE, zh);
 
   const char *local_path = String_val(path);
 
-  int rc = zoo_wget_children2(zhandle->handle,
+  int rc = zoo_wget_children2(handle,
                               local_path,
                               watcher_dispatch,
                               local_ctx,
@@ -2720,7 +2807,6 @@ zkocaml_wget_children2(value zh,
   error = zkocaml_enum_error_c2ml(rc);
   strs = zkocaml_build_strings_struct(&local_strings);
   stat = zkocaml_build_stat_struct(&local_stat);
-  result = caml_alloc(3, 0);
   Store_field(result, 0, error);
   Store_field(result, 1, strs);
   Store_field(result, 2, stat);
@@ -2753,13 +2839,19 @@ zkocaml_get_acl(value zh, value path)
 {
   CAMLparam2(zh, path);
   CAMLlocal4(result, error, acls, stat);
-
   struct ACL_vector local_acl;
   struct Stat local_stat;
-  zkocaml_handle_t *zhandle = zkocaml_handle_struct_val(zh);
+
+  result = caml_alloc(3, 0);
+  Store_field(result, 0, zkocaml_enum_error_c2ml(ZINVALIDSTATE));
+  Store_field(result, 1, zkocaml_build_acls_struct(&local_acl));
+  Store_field(result, 2, zkocaml_build_stat_struct(&local_stat));
+  zhandle_t *handle = zkocaml_handle_struct_val(zh);
+  RETURN_IF_NO_HANDLE (handle, result);
+
   const char *local_path = String_val(path);
 
-  int rc = zoo_get_acl(zhandle->handle,
+  int rc = zoo_get_acl(handle,
                        local_path,
                        (struct ACL_vector*)&local_acl,
                        (struct Stat *)&local_stat);
@@ -2767,7 +2859,6 @@ zkocaml_get_acl(value zh, value path)
   error = zkocaml_enum_error_c2ml(rc);
   acls = zkocaml_build_acls_struct(&local_acl);
   stat = zkocaml_build_stat_struct(&local_stat);
-  result = caml_alloc(3, 0);
   Store_field(result, 0, error);
   Store_field(result, 1, acls);
   Store_field(result, 2, stat);
@@ -2802,9 +2893,11 @@ zkocaml_set_acl(value zh, value path, value version, value acl)
 {
   CAMLparam4(zh, path, version, acl);
   CAMLlocal1(result);
-
   struct ACL_vector local_acl;
-  zkocaml_handle_t *zhandle = zkocaml_handle_struct_val(zh);
+
+  zhandle_t *handle = zkocaml_handle_struct_val(zh);
+  RETURN_IF_NO_HANDLE (handle, zkocaml_enum_error_c2ml(ZINVALIDSTATE));
+
   const char *local_path = String_val(path);
   int local_version = Int_val(version);
   int r = zkocaml_parse_acls(acl, &local_acl);
@@ -2812,7 +2905,7 @@ zkocaml_set_acl(value zh, value path, value version, value acl)
     local_acl = ZOO_OPEN_ACL_UNSAFE;
   }
 
-  int rc = zoo_set_acl(zhandle->handle,
+  int rc = zoo_set_acl(handle,
                        local_path,
                        local_version,
                        (const struct ACL_vector *)&local_acl);

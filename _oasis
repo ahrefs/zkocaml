@@ -14,3 +14,4 @@ Library zkocaml
   CClib: -lzookeeper_mt
   CSources:
     zkocaml_stubs.c, zkocaml_stubs.h
+  BuildDepends: threads
