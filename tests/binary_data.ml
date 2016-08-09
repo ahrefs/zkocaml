@@ -11,11 +11,10 @@ let () =
 
   let zh = init "127.0.0.1:2181" watcher_fn 3600 {client_id = 0L; passwd=""} "hello world" 0 in
 
-  ignore @@ exists zh "/ephemeral" 1;
-  ignore @@ create zh "/ephemeral" "\023\001h\142" acl create_flag;
-  Thread.delay 0.1;
-  let (_,s,_) = Zookeeper.get zh "/ephemeral" 0 in
-  if s <> "\023\001h\142" then
-    printf "FAIL\n";
+  ignore @@ exists zh "/binary_data" 1;
+  let crerr,_ = create zh "/binary_data" "\023\001h\142" acl create_flag in
+  let (err,s,_) = Zookeeper.get zh "/binary_data" 0 in
+  printf "%s -> %s : %S\n" (show_error crerr) (show_error err) s;
+  if err <> ZOK ||  s <> "\023\001h\142" then exit 1;
   ignore @@ close zh;
   printf "DONE\n"

@@ -17,6 +17,7 @@ let () =
     | e,_ ->
       printf "FAIL before create\n";
       printf "%s\n" @@ show_error e;
+      exit 1;
   end;
   ignore @@ create zh "/pers" "" acl create_flag;
 
@@ -26,6 +27,7 @@ let () =
     | e,_ ->
       printf "FAIL after create\n";
       printf "%s\n" @@ show_error e;
+      exit 1;
   end;
   ignore @@ delete zh "/pers" 0;
 
@@ -37,6 +39,7 @@ let () =
     | e,_ ->
       printf "FAIL after delete\n";
       printf "%s\n" @@ show_error e;
+      exit 1;
   end;
 
   ignore @@ close zh;

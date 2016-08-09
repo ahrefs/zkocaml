@@ -430,21 +430,21 @@ zkocaml_parse_acls(value v, struct ACL_vector *acls)
 static value
 zkocaml_build_client_id_struct(const clientid_t *cid)
 {
-  /* CAMLparam0(); */
+  CAMLparam0();
   CAMLlocal1(v);
 
   v = caml_alloc(2, 0);
   Store_field(v, 0, caml_copy_int64(cid->client_id));
   Store_field(v, 1, caml_copy_string(cid->passwd));
 
-  return v;
+  CAMLreturn (v);
 }
 
 
 static value
 zkocaml_build_stat_struct(const struct Stat *stat)
 {
-  /* CAMLparam0(); */
+  CAMLparam0();
   CAMLlocal1(v);
 
   v = caml_alloc(11, 0);
@@ -460,13 +460,13 @@ zkocaml_build_stat_struct(const struct Stat *stat)
   Store_field(v,  9, Val_int(stat->numChildren));
   Store_field(v, 10, Val_int(stat->pzxid));
 
-  return v;
+  CAMLreturn (v);
 }
 
 static value
 zkocaml_build_strings_struct(const struct String_vector *strings)
 {
-  /* CAMLparam0(); */
+  CAMLparam0();
   CAMLlocal1(v);
 
   int i = 0;
@@ -475,13 +475,13 @@ zkocaml_build_strings_struct(const struct String_vector *strings)
     Store_field(v, i, caml_copy_string(strings->data[i]));
   }
 
-  return v;
+  CAMLreturn (v);
 }
 
 static value
 zkocaml_build_acls_struct(const struct ACL_vector *acls)
 {
-  /* CAMLparam0(); */
+  CAMLparam0();
   CAMLlocal2(v, acl);
 
   int i = 0;
@@ -495,7 +495,7 @@ zkocaml_build_acls_struct(const struct ACL_vector *acls)
     Store_field(v, i, acl);
   }
 
-  return v;
+  CAMLreturn (v);
 }
 
 static int
@@ -523,17 +523,17 @@ zkocaml_handle_struct_val (value zh)
 static value
 zkocaml_copy_zh(value zh)
 {
-  /* CAMLparam0(); */
+  CAMLparam0();
   atomic_int* refcount = (atomic_int*) Int64_val(Field(zh,1));
   atomic_fetch_add(refcount,1);
 
-  return zh;
+  CAMLreturn (zh);
 }
 
 static value
 zkocaml_destroy_handle (value zh)
 {
-  /* CAMLparam0(); */
+  CAMLparam0();
   CAMLlocal1(result);
   result = zkocaml_enum_error_c2ml(ZOK);
   atomic_int* refcount = (atomic_int*) Int64_val(Field(zh,1));
@@ -547,7 +547,7 @@ zkocaml_destroy_handle (value zh)
     free(refcount);
   }
 
-  return result;
+  CAMLreturn (result);
 }
 
 #define DISPOSABLE 0

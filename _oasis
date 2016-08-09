@@ -1,10 +1,13 @@
 OASISFormat: 0.4
 Name:        zkocaml
 Version:     1
-Synopsis:    Apache zookeeper client binding for OCAML
+Synopsis:    Apache zookeeper client bindings for OCAML
 Authors:     many
 License:     Apache-2.0
 Plugins:     DevFiles (0.4), META (0.4)
+
+PostCleanCommand: ./test.ml clean
+PreBuildCommand: ./test.ml clean_bin
 
 Library zkocaml
   Modules: Zookeeper
@@ -15,3 +18,6 @@ Library zkocaml
   CSources:
     zkocaml_stubs.c, zkocaml_stubs.h
   BuildDepends: threads
+
+Test tests
+  Command: ./test.ml test
