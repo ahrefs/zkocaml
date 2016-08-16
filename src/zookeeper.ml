@@ -473,7 +473,7 @@ external init:
 
 let init servers cb timeout cid ctx unusedflag =
   let handle = init servers cb timeout cid ctx unusedflag in
-  Thread.delay 0.01; (* empirical :\ *)
+  Thread.delay 0.05; (* empirical :\ *)
   handle
 
 external close:

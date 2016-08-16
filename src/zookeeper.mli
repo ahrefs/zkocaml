@@ -89,8 +89,8 @@ external client_id : zhandle -> client_id = "zkocaml_client_id"
 external recv_timeout : zhandle -> int = "zkocaml_recv_timeout"
 external get_context : zhandle -> string = "zkocaml_get_context"
 external set_context : zhandle -> string -> unit = "zkocaml_set_context"
-external set_watcher : zhandle -> watcher_callback -> watcher_callback = "zkocaml_set_watcher"
-external get_connected_host : zhandle -> string = "zkocaml_get_connected_host"
+(* external set_watcher : zhandle -> watcher_callback -> watcher_callback = "zkocaml_set_watcher" *)
+(* external get_connected_host : zhandle -> string = "zkocaml_get_connected_host" *)
 external zstate : zhandle -> state = "zkocaml_state"
 external acreate :
   zhandle -> string -> string -> acls -> create_flag array -> string_completion_callback -> string -> error
