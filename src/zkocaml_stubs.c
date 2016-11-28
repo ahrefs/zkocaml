@@ -519,23 +519,25 @@ is_connected(zhandle_t* zh)
     if (!h_ || !is_connected(h_))               \
         CAMLreturn(v)                           \
 
+#define ZkO_handle_val(v) (*(zkocaml_handle_t**)Data_custom_val(v))
 
 static zhandle_t*
 zkocaml_handle_struct_val (value zh)
 {
-  zhandle_t* handle = (zhandle_t*) Int64_val(Field(zh,0));
-  atomic_int* refcount = (atomic_int*) Int64_val(Field(zh,1));
-  if (!handle || !is_connected(handle) || !refcount || atomic_load(refcount) <= 0)
-      return 0;
-  return (zhandle_t*) handle;
+  zkocaml_handle_t* handle = ZkO_handle_val(zh);
+  if (!handle->zhandle ||
+      !is_connected(handle->zhandle) ||
+      !handle->refcount ||
+      atomic_load(handle->refcount) <= 0)
+    return 0;
+  return handle->zhandle;
 }
 
 static value
 zkocaml_copy_zh(value zh)
 {
   CAMLparam0();
-  atomic_int* refcount = (atomic_int*) Int64_val(Field(zh,1));
-  atomic_fetch_add(refcount,1);
+  atomic_fetch_add(ZkO_handle_val(zh)->refcount,1);
 
   CAMLreturn (zh);
 }
@@ -546,19 +548,36 @@ zkocaml_destroy_handle (value zh)
   CAMLparam0();
   CAMLlocal1(result);
   result = zkocaml_enum_error_c2ml(ZOK);
-  atomic_int* refcount = (atomic_int*) Int64_val(Field(zh,1));
-  zhandle_t* handle = (zhandle_t*) Int64_val(Field(zh,0));
+  zkocaml_handle_t* handle = ZkO_handle_val(zh);
 
-  if (!handle || !is_connected(handle)) return result;
-  int tmp = atomic_fetch_sub(refcount,1) - 1;
+  if (!handle->zhandle || !is_connected(handle->zhandle)) goto skip;
+  int tmp = atomic_fetch_sub(handle->refcount,1) - 1;
   if (tmp == 0) {
-    result = Val_int(zookeeper_close(handle));
+    result = Val_int(zookeeper_close(handle->zhandle));
     if (zkocaml_log_stream != NULL) fclose(zkocaml_log_stream);
-    free(refcount);
   }
-
-  CAMLreturn (result);
+skip: CAMLreturn (result);
 }
+
+static void finalize (value zh) {
+  zkocaml_handle_t* handle = ZkO_handle_val(zh);
+  free(handle->refcount);
+  if (handle->zhandle && is_connected(handle->zhandle)) zookeeper_close(handle->zhandle);
+  free(handle);
+}
+
+static struct custom_operations handle_ops = {
+  "zhandle",
+  finalize,
+  custom_compare_default,
+  custom_hash_default,
+  custom_serialize_default,
+  custom_deserialize_default,
+#if defined(custom_compare_ext_default)
+  custom_compare_ext_default,
+#endif
+};
+
 
 #define DISPOSABLE 0
 #define PERMANENT 1
@@ -915,20 +934,21 @@ zkocaml_init_native(value host,
   CAMLxparam1(flag);
   CAMLlocal1(zh);
 
-  zh = caml_alloc(2,0);
   const char *local_host = String_val(host);
   int local_recv_timeout = Long_val(recv_timeout);
   clientid_t *cid = NULL;
+  zh = caml_alloc_custom(&handle_ops,sizeof(zkocaml_handle_t*),1,100000);
 
   zkocaml_watcher_context_t *ctx = make_watcher_context(context, watcher_callback, PERMANENT, zh);;
 
   cid = zkocaml_parse_clientid(clientid);
-  zhandle_t *handle = zookeeper_init(local_host, watcher_dispatch, local_recv_timeout, cid, ctx, 0);
-  atomic_int* refcount = (atomic_int*) malloc(sizeof(atomic_int));
+  zhandle_t *zhandle = zookeeper_init(local_host, watcher_dispatch, local_recv_timeout, cid, ctx, 0);
 
-  atomic_init(refcount,1);
-  Store_field(zh, 0, caml_copy_int64((size_t)handle));
-  Store_field(zh, 1, caml_copy_int64((size_t)refcount));
+  zkocaml_handle_t* handle = (zkocaml_handle_t*) malloc(sizeof(zkocaml_handle_t));
+  handle->refcount = (atomic_int*) malloc(sizeof(atomic_int));
+  atomic_init(handle->refcount,1);
+  handle->zhandle = zhandle;
+  ZkO_handle_val(zh) = handle;
 
   CAMLreturn(zh);
 }

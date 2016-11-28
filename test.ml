@@ -34,6 +34,7 @@ let test_list = List.map (sprintf "tests/%s") [
   "create_delete_persistent";
   "disposable_watcher";
   "watcher_after_gc";
+  "multiple_close";
   ]
 
 let rm = Exn.suppress Sys.remove

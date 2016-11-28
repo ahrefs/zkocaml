@@ -33,6 +33,15 @@
 #include <zookeeper/zookeeper.h>
 
 /**
+ * The zkocaml_handle_t wraps a zookeeper connection handle
+ * which indicates a zookeeper session that corresponds to that handle.
+ */
+typedef struct zkocaml_handle_s_ {
+  atomic_int* refcount;
+  zhandle_t* zhandle;
+} zkocaml_handle_t;
+
+/**
  * The zkocaml_watcher_context_t wraps a zookeeper watcher context.
  */
 typedef struct zkocaml_watcher_context_s_ {
