@@ -6,8 +6,7 @@ Authors:     many
 License:     Apache-2.0
 Plugins:     DevFiles (0.4), META (0.4)
 
-PostCleanCommand: ./test.ml clean
-PreBuildCommand: ./test.ml clean_bin
+PostCleanCommand: rm -f tests/*.out
 
 Library zkocaml
   Modules: Zookeeper
@@ -19,5 +18,12 @@ Library zkocaml
     zkocaml_stubs.c, zkocaml_stubs.h
   BuildDepends: threads
 
+Executable utests
+  Path: src
+  MainIs: utests.ml
+  Install: false
+  BuildTools: ocamlbuild
+  BuildDepends: zkocaml
+
 Test tests
-  Command: ./test.ml test
+  Command: ./tests/run.ml test

@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 20615afe193803785e8e846c2da0c971)
+# DO NOT EDIT (digest: 8729c4bed8a4726becd71b35ea445ee4)
 # Ignore VCS directories, you can use the same kind of rule outside
 # OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
@@ -24,6 +24,10 @@ true: annot, bin_annot
 "src/libzkocaml_stubs.a": oasis_library_zkocaml_cclib
 "src/dllzkocaml_stubs.so": oasis_library_zkocaml_cclib
 <src/zkocaml.{cma,cmxa}>: use_libzkocaml_stubs
-<src/*.ml{,i,y}>: pkg_threads
 "src/zkocaml_stubs.c": pkg_threads
+# Executable utests
+"src/utests.byte": pkg_threads
+"src/utests.byte": use_zkocaml
+<src/*.ml{,i,y}>: pkg_threads
+<src/*.ml{,i,y}>: use_zkocaml
 # OASIS_STOP

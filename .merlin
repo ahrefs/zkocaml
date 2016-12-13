@@ -1,0 +1,5 @@
+ld
+B _build/src
+B +threads
+PKG oUnit extlib zkocaml
+S .

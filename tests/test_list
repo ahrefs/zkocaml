@@ -1,0 +1,8 @@
+watcher_after_gc
+disposable_watcher
+multiclose
+create_delete_persistent
+completion_callback_after_gc
+binary
+batch_test
+connect
